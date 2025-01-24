@@ -6,4 +6,5 @@ type User struct {
 	Name     string `gorm:"size:255" json:"name"`
 	Password string `gorm:"size:255" json:"password"`
 	Age      uint8  `json:"age"`
+	Photo    string `json:"photo"`
 }

@@ -3,21 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"mapped/initializers"
 	"mapped/middleware"
-	"mapped/model"
 	"mapped/user-service/user-handlers"
 	"os"
 )
-
-func init() {
-	initializers.LoadEnv("D:\\Mapped\\.env")
-	initializers.Connect()
-	err := initializers.DB.AutoMigrate(&model.User{}, &model.Place{}, &model.Review{})
-	if err != nil {
-		panic(err)
-	}
-}
 
 func main() {
 	router := gin.Default()
