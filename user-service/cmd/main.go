@@ -13,7 +13,7 @@ import (
 func init() {
 	initializers.LoadEnv("D:\\Mapped\\.env")
 	initializers.Connect()
-	err := initializers.DB.AutoMigrate(&model.User{}, &model.Place{}, &model.Review{})
+	err := initializers.DB.AutoMigrate(&model.User{})
 	if err != nil {
 		panic(err)
 	}
