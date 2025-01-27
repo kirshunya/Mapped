@@ -1,0 +1,61 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+html, body {
+  height: 80%;
+  margin: 0;
+}
+
+.map-container {
+  height: 85vh; /* Высота карты на весь экран */
+  width: 100vw;  /* Ширина карты на весь экран */
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+.map-container {
+  height: 100vh; /* Высота карты на весь экран */
+  width: 100vw;  /* Ширина карты на весь экран */
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #0078d4; /* Цвет фона тулбара */
+  color: white;
+}
+
+.profile-buttons {
+  display: flex;
+}
+
+.profile-button {
+  margin-left: 10px;
+  padding: 10px 15px;
+  background-color: #0056a1; /* Цвет фона кнопок */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.profile-button:hover {
+  background-color: #004080; /* Цвет фона кнопки при наведении */
+}
