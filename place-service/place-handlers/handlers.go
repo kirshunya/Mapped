@@ -22,6 +22,26 @@ func GetAllPlaces(c *gin.Context) {
 	})
 }
 
+// GetPlaceByCoordinates получает информацию о месте по широте и долготе
+func GetPlaceByCoordinates(c *gin.Context) {
+	latitude := c.Query("latitude")
+	longitude := c.Query("longitude")
+
+	var place model.Place
+
+	// Выполняем запрос к базе данных, чтобы найти место по координатам
+	if err := initializers.DB.Where("latitude = ? AND longitude = ?", latitude, longitude).Preload("Reviews").First(&place).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Place not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"place": place,
+	})
+}
+
 func CreatePlace(c *gin.Context) {
 	var place model.Place
 

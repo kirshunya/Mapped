@@ -28,6 +28,7 @@ func main() {
 	//router.Use(middleware.RequireAuth)
 
 	router.GET("/", place_handlers.GetAllPlaces)
+	router.GET("/places/coordinates", place_handlers.GetPlaceByCoordinates)
 	router.POST("/create", place_handlers.CreatePlace)
 	router.POST("/create-review", place_handlers.CreateReview)
 
