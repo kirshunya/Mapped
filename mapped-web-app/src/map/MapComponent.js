@@ -1,140 +1,113 @@
-import React, { useEffect, useRef, useState } from 'react';
+// src/components/MapComponent.js
+import React, { useRef, useEffect } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import './MapComponent.css';
+
+// Функция для вычисления расстояния между двумя координатами (в метрах)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Радиус Земли в метрах
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+        Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Расстояние в метрах
+};
 
 const MapComponent = () => {
     const mapContainer = useRef(null);
-    const [markers, setMarkers] = useState([]);
-    const [searchOpen, setSearchOpen] = useState(false);
-    const [latitude, setLatitude] = useState('');
-    const [longitude, setLongitude] = useState('');
-    const mapRef = useRef(null);
+    const map = useRef(null);
+    const markers = useRef([]); // Используем useRef для хранения маркеров
 
     useEffect(() => {
-        const map = new maplibregl.Map({
+        if (map.current) return; // Инициализация карты только один раз
+
+        map.current = new maplibregl.Map({
             container: mapContainer.current,
-            style: 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL',
-            center: [37.618423, 55.751244],
-            zoom: 10,
+            style: 'https://api.maptiler.com/maps/streets/style.json?key=get_your_own_OpIi9ZULNHzrESv6T2vL', // Замените на ваш ключ
+            center: [0, 0],
+            zoom: 2
         });
 
-        mapRef.current = map;
+        // Обработчик клика на карту
+        map.current.on('click', (e) => {
+            // Проверяем, был ли клик на маркере
+            const features = map.current.queryRenderedFeatures(e.point, {
+                layers: ['markers'] // Убедитесь, что маркеры добавлены в слой 'markers'
+            });
 
-        const handleMapClick = (event) => {
-            event.preventDefault();
-
-            const { lng, lat } = event.lngLat;
-
-            if (markers.some(marker => marker.lng === lng && marker.lat === lat)) {
+            // Если клик был на маркере, не создаем новый маркер
+            if (features.length > 0) {
                 return;
             }
 
-            const newMarker = { lng, lat };
-            setMarkers((prevMarkers) => [...prevMarkers, newMarker]);
+            const { lng, lat } = e.lngLat;
 
-            const marker = new maplibregl.Marker()
-                .setLngLat([lng, lat])
-                .addTo(map);
-
-            const popup = new maplibregl.Popup({ offset: 25 })
-                .setText(`Загрузка информации...`)
-                .setLngLat([lng, lat])
-                .addTo(map);
-
-            marker.getElement().addEventListener('click', (event) => {
-                event.preventDefault(); // Отключаем стандартное поведение
-                event.stopPropagation(); // Останавливаем всплытие события
-                handleMarkerClick(lng, lat, popup);
+            // Проверяем, есть ли маркер в радиусе 10 метров
+            const isMarkerNearby = markers.current.some((marker) => {
+                const distance = calculateDistance(lat, lng, marker.lat, marker.lng);
+                return distance <= 10; // 10 метров
             });
-        };
 
-        map.on('click', handleMapClick);
-
-        return () => {
-            map.off('click', handleMapClick);
-            map.remove();
-        };
-    }, [markers]);
-
-    const handleMarkerClick = async (lng, lat, popup) => {
-        try {
-            const response = await fetch(`http://localhost:8082/places/coordinates?latitude=${lat}&longitude=${lng}`);
-            const data = await response.json();
-
-            if (response.ok) {
-                popup.setText(`${data.place.name}: ${data.place.description}`);
-            } else {
-                popup.setText(data.error);
+            if (isMarkerNearby) {
+                alert('Маркер уже существует в радиусе 10 метров!');
+                return;
             }
-            popup.addTo(mapRef.current);
-        } catch (error) {
-            console.error('Ошибка при получении данных:', error);
-            popup.setText('Ошибка при получении данных');
-            popup.addTo(mapRef.current);
-        }
-    };
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        setSearchOpen(false);
+            // Создаем новый маркер
+            const newMarker = {
+                lng,
+                lat,
+                info: `Маркер на координатах: ${lng}, ${lat}`,
+                photos: ['https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSCalT-bv9Nap_tJoeeiWBSkrjxqFZC2IgyjA&s', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSx6yT7oBWFeKJH-85mTe_LX8XL5RXw1mRFow&s'],
+                description: 'Описание места',
+                reviews: ['Отзыв 1', 'Отзыв 2']
+            };
 
-        const lat = parseFloat(latitude);
-        const lng = parseFloat(longitude);
+            // Добавляем новый маркер в массив маркеров
+            markers.current.push(newMarker);
 
-        if (!isNaN(lat) && !isNaN(lng)) {
-            mapRef.current.setCenter([lng, lat]);
-            mapRef.current.setZoom(15);
-
+            // Создаем маркер на карте
             const marker = new maplibregl.Marker()
                 .setLngLat([lng, lat])
-                .addTo(mapRef.current);
+                .addTo(map.current);
 
-            const popup = new maplibregl.Popup({ offset: 25 })
-                .setText(`Координаты: ${lat}, ${lng}`)
-                .setLngLat([lng, lat])
-                .addTo(mapRef.current);
-        } else {
-            alert('Пожалуйста, введите корректные координаты.');
-        }
-    };
-
-    return (
+            // Добавляем Popup к маркеру
+            const popup = new maplibregl.Popup({ offset: 25 }).setHTML(`
+        <h3>Информация о месте</h3>
+        <p>${newMarker.info}</p>
+        <p><strong>Описание:</strong> ${newMarker.description}</p>
         <div>
-            <button onClick={() => setSearchOpen(!searchOpen)}>Поиск места</button>
-            {searchOpen && (
-                <div className="search-overlay">
-                    <form onSubmit={handleSearch} className="search-form">
-                        <div className="input-group">
-                            <label>Широта:</label>
-                            <input
-                                type="number"
-                                step="any"
-                                placeholder="Введите широту"
-                                value={latitude}
-                                onChange={(e) => setLatitude(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <div className="input-group">
-                            <label>Долгота:</label>
-                            <input
-                                type="number"
-                                step="any"
-                                placeholder="Введите долготу"
-                                value={longitude}
-                                onChange={(e) => setLongitude(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <button type="submit">Найти</button>
-                        <button type="button" onClick={() => setSearchOpen(false)}>Закрыть</button>
-                    </form>
-                </div>
-            )}
-            <div ref={mapContainer} className="map-container" style={{ width: '100%', height: '100vh' }} />
+          <strong>Фотографии:</strong>
+          ${newMarker.photos.map((photo) => `<img src="${photo}" alt="Фото" style="width: 100px; margin: 5px;" />`).join('')}
         </div>
-    );
+        <div>
+          <strong>Отзывы:</strong>
+          <ul>
+            ${newMarker.reviews.map((review, index) => `<li key=${index}>${review}</li>`).join('')}
+          </ul>
+        </div>
+      `);
+
+            // Показываем Popup при клике на маркер
+            marker.setPopup(popup);
+        });
+
+        // Очистка карты при размонтировании компонента
+        return () => {
+            if (map.current) {
+                map.current.remove();
+                map.current = null;
+            }
+        };
+    }, []); // Зависимостей нет, карта инициализируется только один раз
+
+    return <div ref={mapContainer} style={{ width: '100%', height: '100vh' }} />;
 };
 
 export default MapComponent;

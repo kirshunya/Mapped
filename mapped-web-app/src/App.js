@@ -1,18 +1,22 @@
-import React from 'react';
+// src/App.js
+import React, { useState } from 'react';
 import MapComponent from './map/MapComponent';
-import './App.css'; // Убедитесь, что вы импортируете стили
+import Toolbar from './toolbar/Toolbar';
+import './App.css';
 
 const App = () => {
+    const [mapInstance, setMapInstance] = useState(null);
+
+    const handleSearch = (lat, lng) => {
+        if (mapInstance) {
+            mapInstance.flyTo({ center: [lng, lat], zoom: 10 });
+        }
+    };
+
     return (
-        <div className="app-container">
-            <header className="toolbar">
-                <h1 className="title">Карта</h1>
-                <div className="profile-buttons">
-                    <button className="profile-button">Профиль</button>
-                    <button className="profile-button">Настройки</button>
-                </div>
-            </header>
-            <MapComponent />
+        <div className="App">
+            <Toolbar onSearch={handleSearch} />
+            <MapComponent onMapLoad={setMapInstance} />
         </div>
     );
 };
