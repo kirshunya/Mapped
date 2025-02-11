@@ -7,11 +7,11 @@ postgres:
   dbname: "mapped"
   sslmode: "disable"
 user_service:
-  port: "8081"
+  port: ":8081"
 place_service:
-  port: "8082"
+  port: ":8082"
 recommendation_service:
-  port: "8083"
+  port: ":8083"
 
 kafka:
   first_broker_port: "9093"
