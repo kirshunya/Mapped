@@ -19,7 +19,7 @@ type Config struct {
 
 type PostgresConfig struct {
 	Host     string `yaml:"host" env-required:"true"`
-	Port     int    `yaml:"port" env-default:"5432"`
+	Port     string `yaml:"port" env-default:"5432"`
 	User     string `yaml:"user" env-required:"true"`
 	Password string `yaml:"password" env-required:"true"`
 	DBName   string `yaml:"dbname" env-required:"true"`
