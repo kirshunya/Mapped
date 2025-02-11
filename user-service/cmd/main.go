@@ -2,17 +2,18 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
+	"mapped/config"
 	"mapped/initializers"
 	"mapped/middleware"
 	"mapped/model"
-	"mapped/user-service/user-handlers"
-	"os"
+	user_handlers "mapped/user-service/user-handlers"
+
+	"github.com/gin-gonic/gin"
 )
 
 func init() {
-	initializers.LoadEnv("D:\\Mapped\\.env")
-	initializers.Connect()
+	cfg := config.MustLoad()
+	initializers.Connect(cfg)
 	err := initializers.DB.AutoMigrate(&model.User{})
 	if err != nil {
 		panic(err)
@@ -20,6 +21,7 @@ func init() {
 }
 
 func main() {
+	cfg := config.MustLoad()
 	router := gin.Default()
 
 	router.GET("/", user_handlers.ServerStatus)
@@ -28,7 +30,6 @@ func main() {
 
 	router.Use(middleware.RequireAuth)
 
-	fmt.Println(os.Getenv("USER_SERVICE_PORT"))
-	router.Run(os.Getenv("USER_SERVICE_PORT"))
-
+	fmt.Println(cfg.User.Port)
+	router.Run(cfg.User.Port)
 }

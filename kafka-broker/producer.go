@@ -1,15 +1,11 @@
 package kafka_broker
 
 import (
-	"github.com/IBM/sarama"
 	"log"
-	"mapped/initializers"
-	"os"
-)
+	"mapped/config"
 
-func init() {
-	initializers.LoadEnv("D:\\Mapped\\.env")
-}
+	"github.com/IBM/sarama"
+)
 
 func ConnectProducer(brokers []string) (sarama.SyncProducer, error) {
 	config := sarama.NewConfig()
@@ -21,7 +17,8 @@ func ConnectProducer(brokers []string) (sarama.SyncProducer, error) {
 }
 
 func Produce(topic string, message []byte) error {
-	brokers := []string{os.Getenv("FIRST_BROKER_ADDRES")}
+	cfg := config.MustLoad()
+	brokers := []string{cfg.Kafka.FirstBrokerPort}
 	producer, err := ConnectProducer(brokers)
 	if err != nil {
 		panic(err)

@@ -2,17 +2,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io/ioutil"
+	"mapped/config"
 	"mapped/initializers"
 	"mapped/model"
 	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 func init() {
-	initializers.LoadEnv("D:\\Mapped\\.env")
-	initializers.Connect()
+	cfg := config.MustLoad()
+	initializers.Connect(cfg)
 	err := initializers.DB.AutoMigrate(&model.User{}, &model.Place{}, &model.Review{})
 	if err != nil {
 		panic(err)
