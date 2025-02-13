@@ -2,17 +2,16 @@ package main
 
 import (
 	"fmt"
-	"mapped/config"
+	"github.com/gin-gonic/gin"
 	"mapped/initializers"
 	"mapped/model"
 	place_handlers "mapped/place-service/place-handlers"
-
-	"github.com/gin-gonic/gin"
+	"os"
 )
 
 func init() {
-	cfg := config.MustLoad()
-	initializers.Connect(cfg)
+	initializers.LoadEnv("D:\\Mapped\\.env")
+	initializers.Connect()
 	err := initializers.DB.AutoMigrate(&model.Place{}, &model.Review{})
 	if err != nil {
 		panic(err)
@@ -20,15 +19,20 @@ func init() {
 }
 
 func main() {
-	cfg := config.MustLoad()
 	router := gin.Default()
+
+	//router.GET("/", user_handlers.ServerStatus)
+	//router.POST("/login", user_handlers.LogIn)
+	//router.POST("/signup", user_handlers.SignUp)
+	//
+	//router.Use(middleware.RequireAuth)
 
 	router.GET("/", place_handlers.GetAllPlaces)
 	router.GET("/places/coordinates", place_handlers.GetPlaceByCoordinates)
 	router.POST("/create", place_handlers.CreatePlace)
 	router.POST("/create-review", place_handlers.CreateReview)
 
-	fmt.Println(cfg.Place.Port)
-	router.Run(cfg.Place.Port)
+	fmt.Println(os.Getenv("PLACE_SERVICE_PORT"))
+	router.Run(os.Getenv("PLACE_SERVICE_PORT"))
 
 }
