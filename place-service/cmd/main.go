@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"mapped/config"
 	"mapped/initializers"
 	"mapped/model"
 	place_handlers "mapped/place-service/place-handlers"
@@ -11,8 +11,8 @@ import (
 )
 
 func init() {
-	cfg := config.MustLoad()
-	initializers.Connect(cfg)
+	initializers.LoadEnv("D:\\Mapped\\.env")
+	initializers.ConnectEnv()
 	err := initializers.DB.AutoMigrate(&model.User{})
 	if err != nil {
 		panic(err)
@@ -21,6 +21,14 @@ func init() {
 
 func main() {
 	router := gin.Default()
+
+	router.Use(cors.New(cors.Config{
+		AllowAllOrigins: true, // Разрешить все источники
+		// Можете настроить более конкретные параметры
+		// AllowOrigins:     []string{"http://example.com"}, // Разрешить только определенные источники
+		// AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		// AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+	}))
 
 	router.GET("/places", place_handlers.GetAllPlaces)
 	router.GET("/places/coordinates", place_handlers.GetPlaceByCoordinates)

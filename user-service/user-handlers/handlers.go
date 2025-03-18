@@ -34,6 +34,7 @@ func SignUp(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to generate password",
 		})
+		return
 	}
 	user.Password = string(hash)
 
@@ -48,8 +49,48 @@ func SignUp(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": user})
 }
 
-func LogIn(c *gin.Context) {
+func GetUserByID(c *gin.Context) {
+	id := c.Param("id")
+	var user model.User
 
+	if err := initializers.DB.First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": user})
+}
+
+func UpdateUser(c *gin.Context) {
+	id := c.Param("id")
+	var user model.User
+
+	if err := initializers.DB.First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if err := c.ShouldBind(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	initializers.DB.Save(&user)
+	c.JSON(http.StatusOK, gin.H{"data": user})
+}
+
+func DeleteUser(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := initializers.DB.Delete(&model.User{}, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "User deleted"})
+}
+
+func LogIn(c *gin.Context) {
 	var body struct {
 		Email    string
 		Password string
@@ -59,6 +100,7 @@ func LogIn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
 		})
+		return
 	}
 
 	var user model.User

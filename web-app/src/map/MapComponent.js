@@ -8,7 +8,7 @@ const MapComponent = () => {
     const [places, setPlaces] = useState([]);
 
     useEffect(() => {
-        axios.get('http://localhost:8082/places')
+        axios.get('http://localhost:8085/places')
             .then(response => {
                 console.log("Данные с бэкенда:", response.data.places); // Используем response.data.places
                 setPlaces(response.data.places); // Устанавливаем данные из поля places

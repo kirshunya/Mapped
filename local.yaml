@@ -12,6 +12,8 @@ place_service:
   port: ":8082"
 recommendation_service:
   port: ":8083"
+api_gateway:
+  port: ":8085"
 
 kafka:
   first_broker_port: "9093"

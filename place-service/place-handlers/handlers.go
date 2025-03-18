@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// Получение всех мест
 func GetAllPlaces(c *gin.Context) {
 	var places []model.Place
 
@@ -22,14 +23,13 @@ func GetAllPlaces(c *gin.Context) {
 	})
 }
 
-// GetPlaceByCoordinates получает информацию о месте по широте и долготе
+// Получение места по координатам
 func GetPlaceByCoordinates(c *gin.Context) {
 	latitude := c.Query("latitude")
 	longitude := c.Query("longitude")
 
 	var place model.Place
 
-	// Выполняем запрос к базе данных, чтобы найти место по координатам
 	if err := initializers.DB.Where("latitude = ? AND longitude = ?", latitude, longitude).Preload("Reviews").First(&place).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "Place not found",
@@ -42,6 +42,7 @@ func GetPlaceByCoordinates(c *gin.Context) {
 	})
 }
 
+// Создание нового места
 func CreatePlace(c *gin.Context) {
 	var place model.Place
 
@@ -66,6 +67,51 @@ func CreatePlace(c *gin.Context) {
 	})
 }
 
+// Получение места по ID
+func GetPlaceByID(c *gin.Context) {
+	id := c.Param("id")
+	var place model.Place
+
+	if err := initializers.DB.Preload("Reviews").First(&place, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Place not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": place})
+}
+
+// Обновление места
+func UpdatePlace(c *gin.Context) {
+	id := c.Param("id")
+	var place model.Place
+
+	if err := initializers.DB.First(&place, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Place not found"})
+		return
+	}
+
+	if err := c.ShouldBind(&place); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	initializers.DB.Save(&place)
+	c.JSON(http.StatusOK, gin.H{"data": place})
+}
+
+// Удаление места
+func DeletePlace(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := initializers.DB.Delete(&model.Place{}, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Place not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "Place deleted"})
+}
+
+// Создание отзыва
 func CreateReview(c *gin.Context) {
 	var review model.Review
 
