@@ -1,58 +1,49 @@
-// App.js
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import theme from './theme';
+import useAuthStore from './store/authStore';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import MainMap from './pages/MapPage';
+import ModerationPage from './pages/ModerationPage';
+import ProfilePage from './pages/ProfilePage';
+import GroupsPage from './pages/GroupsPage';
+import FeedPage from './pages/FeedPage';
+import RecommendationsPage from './pages/RecommendationsPage';
+import ChatsPage from './pages/ChatsPage';
+import PlaceDetailPage from './pages/PlaceDetailPage';
 
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import axios from 'axios';
-import MapPage from './map/MapComponent';
-import Login from './login/Login';
-import Signup from './signup/Signup';
-import Profile from './profile/Profile';
-import './App.css';
-
-const App = () => {
-    const [places, setPlaces] = useState([]);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [user, setUser] = useState(null);
-
-    useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-            setIsAuthenticated(true);
-        }
-    }, []);
-
-    useEffect(() => {
-        const fetchPlaces = async () => {
-            if (isAuthenticated) {
-                try {
-                    const response = await axios.get('http://localhost:8085/places');
-                    setPlaces(response.data.places);
-                } catch (error) {
-                    console.error('Error fetching places:', error);
-                }
-            }
-        };
-
-        fetchPlaces();
-    }, [isAuthenticated]);
-
-    return (
-        <Router>
-            <div className="map-container">
-                {isAuthenticated && user && (
-                    <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000 }}>
-                        {/*<Profile user={user} />*/}
-                    </div>
-                )}
-                <Routes>
-                    <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
-                    <Route path="/signup" element={<Signup setIsAuthenticated={setIsAuthenticated} />} />
-                    <Route path="/" element={isAuthenticated ? <MapPage places={places} /> : <Navigate to="/login" />} />
-                </Routes>
-            </div>
-        </Router>
-    );
+const Protected = ({ children }) => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
+
+const ModeratorOnly = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'moderator' && user?.role !== 'admin') return <Navigate to="/" replace />;
+  return children;
+};
+
+const App = () => (
+  <ThemeProvider theme={theme}>
+    <CssBaseline />
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/moderation" element={<ModeratorOnly><ModerationPage /></ModeratorOnly>} />
+        <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
+        <Route path="/groups" element={<Protected><GroupsPage /></Protected>} />
+        <Route path="/feed" element={<Protected><FeedPage /></Protected>} />
+        <Route path="/recommendations" element={<Protected><RecommendationsPage /></Protected>} />
+        <Route path="/places/:id" element={<Protected><PlaceDetailPage /></Protected>} />
+        <Route path="/chats" element={<Protected><ChatsPage /></Protected>} />
+        <Route path="/*" element={<Protected><MainMap /></Protected>} />
+      </Routes>
+    </Router>
+  </ThemeProvider>
+);
 
 export default App;
