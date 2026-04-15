@@ -1,0 +1,330 @@
+@startuml Mapped_Sequence_Diagrams
+' Mapped - Sequence Diagrams (PlantUML)
+' 5 main usage scenarios for the Mapped microservices architecture
+' Standard: UML 2.0
+
+skinparam sequenceArrowThickness 2
+skinparam backgroundColor #F5F5F5
+skinparam actorBackgroundColor #7C3AED
+skinparam actorBorderColor #5B21B6
+skinparam participantBackgroundColor #2D2D44
+skinparam participantBorderColor #7C3AED
+skinparam participantFontColor #FFFFFF
+skinparam noteBkgColor #FFF9E6
+skinparam noteBorderColor #FFA500
+
+' Scenario 1: Creating a post linked to a place with media
+
+@startuml Mapped_Sequence_Diagram_1
+
+== Scenario 1: Create Post with Place and Media ==
+
+actor User as User1
+participant "Frontend\n(React)" as Frontend1
+participant "API Gateway" as API1
+participant "Posts Service" as Posts1
+participant "Places Service" as Places1
+participant "Media Service" as Media1
+participant "Database" as DB1
+participant "File Storage" as FS1
+
+User1 -> Frontend1: 1. Open post creation form
+Frontend1 -> Frontend1: 2. Load image locally
+User1 -> Frontend1: 3. Enter post content and select place
+Frontend1 -> API1: 4. POST /media/upload (file)
+API1 -> Media1: 5. UploadFile(file, userID)
+Media1 -> FS1: 6. Save file
+FS1 --> Media1: 7. Return media URL
+Media1 -> DB1: 8. SaveMediaFile(url, name, size, userID)
+DB1 --> Media1: 9. OK, ID = 123
+Media1 --> API1: 10. {url, id}
+API1 --> Frontend1: 11. 200 OK {mediaURL}
+Frontend1 -> API1: 12. POST /posts/create {content, mediaURLs[], placeID}
+API1 -> Posts1: 13. CreatePost(userID, username, req)
+Posts1 -> Posts1: 14. Validate (content not empty)
+Posts1 -> Places1: 15. GetPlace(placeID, userID)
+Places1 -> DB1: 16. SELECT Place WHERE id = placeID
+DB1 --> Places1: 17. Place {id, name, rating}
+Places1 --> Posts1: 18. Place OK
+Posts1 -> DB1: 19. INSERT Post {userID, username, content, mediaURLs, placeID}
+DB1 --> Posts1: 20. OK, postID = 456
+Posts1 -> DB1: 21. UPDATE Place SET LikeCount + 1 WHERE id = placeID
+DB1 --> Posts1: 22. OK
+Posts1 --> API1: 23. {postID, createdAt}
+API1 --> Frontend1: 24. 201 Created {post}
+Frontend1 --> User1: 25. Success: Post created!
+
+@enduml Mapped_Sequence_Diagram_1
+
+' Scenario 2: Like place and create review with rating
+
+@startuml Mapped_Sequence_Diagram_2
+
+== Scenario 2: Like Place and Create Review with Media ==
+
+actor User as User2
+participant "Frontend\n(React)" as Frontend2
+participant "API Gateway" as API2
+participant "Places Service" as Places2
+participant "Reviews Service" as Reviews2
+participant "Media Service" as Media2
+participant "Database" as DB2
+participant "File Storage" as FS2
+
+User2 -> Frontend2: 1. Open place page
+Frontend2 -> API2: 2. GET /places/{placeID}
+API2 -> Places2: 3. GetPlace(placeID, userID)
+Places2 -> DB2: 4. SELECT Place WHERE id = placeID
+DB2 --> Places2: 5. Place {name, rating, reviewCount}
+Places2 --> API2: 6. PlaceResponse
+API2 --> Frontend2: 7. 200 OK {place, liked, disliked}
+Frontend2 --> User2: 8. Display place information
+
+User2 -> Frontend2: 9. Click like on place
+Frontend2 -> API2: 10. POST /places/{placeID}/like {type: like}
+API2 -> Places2: 11. LikePlace(placeID, userID, type)
+Places2 -> DB2: 12. INSERT PlaceLike {placeID, userID, type}
+DB2 --> Places2: 13. OK, likeID = 789
+Places2 -> DB2: 14. UPDATE Place SET LikeCount = LikeCount + 1
+DB2 --> Places2: 15. OK
+Places2 --> API2: 16. {likeID, success}
+API2 --> Frontend2: 17. 201 Created
+Frontend2 --> User2: 18. Success: Place liked!
+
+User2 -> Frontend2: 19. Fill review form (rating 4.5, text, photo)
+Frontend2 -> Frontend2: 20. Load review photo locally
+Frontend2 -> API2: 21. POST /media/upload {photo}
+API2 -> Media2: 22. UploadFile(file, userID)
+Media2 -> FS2: 23. Save image
+FS2 --> Media2: 24. Return URL
+Media2 -> DB2: 25. SaveMediaFile(url)
+DB2 --> Media2: 26. OK
+Media2 --> API2: 27. {url}
+API2 --> Frontend2: 28. 200 OK
+
+Frontend2 -> API2: 29. POST /reviews/create {placeID, rating: 4.5, content, mediaURLs}
+API2 -> Reviews2: 30. CreateReview(userID, username, req)
+Reviews2 -> Reviews2: 31. Validate (rating 0-5, content less than 5000 chars)
+Reviews2 -> DB2: 32. INSERT Review {placeID, userID, rating, content, mediaURLs}
+DB2 --> Reviews2: 33. OK, reviewID = 111
+Reviews2 -> Places2: 34. UpdatePlaceRating(placeID, newRating)
+Places2 -> DB2: 35. SELECT AVG(rating) FROM Review WHERE placeID = ?
+DB2 --> Places2: 36. avgRating = 4.3
+Places2 -> DB2: 37. UPDATE Place SET Rating = 4.3, ReviewCount = ReviewCount + 1
+DB2 --> Places2: 38. OK
+Places2 --> Reviews2: 39. OK
+Reviews2 --> API2: 40. {reviewID, createdAt}
+API2 --> Frontend2: 41. 201 Created {review}
+Frontend2 --> User2: 42. Success: Review published!
+
+@enduml Mapped_Sequence_Diagram_2
+
+' Scenario 3: Search nearby places and view details
+
+@startuml Mapped_Sequence_Diagram_3
+
+== Scenario 3: Geo-Search Nearby Places and View Reviews ==
+
+actor User as User3
+participant "Frontend\n(React)" as Frontend3
+participant "API Gateway" as API3
+participant "Places Service" as Places3
+participant "Reviews Service" as Reviews3
+participant "Database" as DB3
+
+User3 -> Frontend3: 1. Open map with current location
+Frontend3 -> Frontend3: 2. Get GPS coordinates (lat: 55.75, lng: 37.62)
+
+Frontend3 -> API3: 3. GET /places/nearby?lat=55.75&lng=37.62&radius=5km
+API3 -> Places3: 4. GetNearbyPlaces(lat, lng, radius, userID)
+Places3 -> DB3: 5. SELECT * FROM Place WHERE distance(lat,lng) less than radius
+DB3 --> Places3: 6. [Place1, Place2, Place3, ..., Place10]
+Places3 -> Places3: 7. Sort by rating
+Places3 --> API3: 8. []PlaceResponse {place, liked, disliked}
+API3 --> Frontend3: 9. 200 OK {places[]}
+Frontend3 --> User3: 10. Display 10 places on map
+
+User3 -> Frontend3: 11. Click on place (placeID = 456)
+Frontend3 -> API3: 12. GET /places/{placeID}
+API3 -> Places3: 13. GetPlace(placeID, userID)
+Places3 -> DB3: 14. SELECT Place WHERE id = 456
+DB3 --> Places3: 15. Place {name, desc, rating, reviewCount}
+Places3 --> API3: 16. PlaceResponse
+API3 --> Frontend3: 17. 200 OK {place}
+Frontend3 --> User3: 18. Open place card with details
+
+User3 -> Frontend3: 19. Scroll to reviews and click View All
+Frontend3 -> API3: 20. GET /places/{placeID}/reviews?limit=10&offset=0
+API3 -> Reviews3: 21. GetPlaceReviews(placeID, limit, offset)
+Reviews3 -> DB3: 22. SELECT * FROM Review WHERE placeID = 456 LIMIT 10 OFFSET 0
+DB3 --> Reviews3: 23. [Review1, Review2, ..., Review10]
+Reviews3 -> Reviews3: 24. Add user info (username, avatar)
+Reviews3 --> API3: 25. []Review {content, rating, createdAt, author}
+API3 --> Frontend3: 26. 200 OK {reviews[]}
+Frontend3 --> User3: 27. Display all reviews with ratings
+
+User3 -> Frontend3: 28. Mark as place viewed
+Frontend3 -> API3: 29. POST /places/{placeID}/view {timestamp}
+API3 -> Places3: 30. RecordPlaceView(placeID, userID)
+Places3 -> DB3: 31. INSERT PlaceView {placeID, userID, viewedAt}
+DB3 --> Places3: 32. OK
+Places3 --> API3: 33. {success}
+API3 --> Frontend3: 34. 201 Created
+Frontend3 --> User3: 35. Success: View recorded
+
+@enduml Mapped_Sequence_Diagram_3
+
+' Scenario 4: Registration, login and profile update
+
+@startuml Mapped_Sequence_Diagram_4
+
+== Scenario 4: Registration, Authentication and Profile ==
+
+actor User as User4
+participant "Frontend\n(React)" as Frontend4
+participant "API Gateway" as API4
+participant "Auth Service" as Auth4
+participant "Database" as DB4
+participant "Media Service" as Media4
+participant "File Storage" as FS4
+
+User4 -> Frontend4: 1. Open registration page
+User4 -> Frontend4: 2. Enter email, username, password
+Frontend4 -> API4: 3. POST /auth/register {email, username, password}
+API4 -> Auth4: 4. Register(req: RegisterRequest)
+Auth4 -> Auth4: 5. Validate (email not empty, password 8+ chars)
+Auth4 -> DB4: 6. SELECT User WHERE email = ?
+DB4 --> Auth4: 7. No results (email available)
+Auth4 -> Auth4: 8. Hash password (bcrypt)
+Auth4 -> DB4: 9. INSERT User {email, username, hashedPassword, role: user}
+DB4 --> Auth4: 10. OK, userID = 789
+Auth4 -> Auth4: 11. Generate JWT token {userID, role, exp}
+Auth4 --> API4: 12. AuthResponse {token, user{userID, username, role}}
+API4 --> Frontend4: 13. 201 Created {token}
+Frontend4 -> Frontend4: 14. Save token in localStorage
+Frontend4 --> User4: 15. Success: Registration complete! Go to home
+
+User4 -> Frontend4: 16. (Login) Open login form
+User4 -> Frontend4: 17. Enter email and password
+Frontend4 -> API4: 18. POST /auth/login {email, password}
+API4 -> Auth4: 19. Login(req: LoginRequest)
+Auth4 -> DB4: 20. SELECT User WHERE email = ?
+DB4 --> Auth4: 21. User {userID, username, hashedPassword, role}
+Auth4 -> Auth4: 22. Compare password (bcrypt.CompareHashAndPassword)
+Auth4 -> Auth4: 23. OK: Passwords match
+Auth4 -> Auth4: 24. Generate new JWT token
+Auth4 --> API4: 25. AuthResponse {token, user}
+API4 --> Frontend4: 26. 200 OK {token}
+Frontend4 -> Frontend4: 27. Update localStorage with new token
+Frontend4 --> User4: 28. Success: Login complete!
+
+User4 -> Frontend4: 29. Open profile (My Profile)
+Frontend4 -> API4: 30. GET /auth/profile (with Authorization: Bearer token)
+API4 -> Auth4: 31. GetUserByID(userID) + ValidateToken(token)
+Auth4 -> DB4: 32. SELECT User WHERE id = userID
+DB4 --> Auth4: 33. User {id, email, username, avatar, bio}
+Auth4 --> API4: 34. User
+API4 --> Frontend4: 35. 200 OK {user}
+Frontend4 --> User4: 36. Display profile (avatar, bio, email)
+
+User4 -> Frontend4: 37. Update avatar (upload new photo)
+Frontend4 -> API4: 38. POST /media/upload {file}
+API4 -> Media4: 39. UploadFile(file, userID)
+Media4 -> FS4: 40. Save file
+FS4 --> Media4: 41. URL = /media/user_789_avatar.jpg
+Media4 -> DB4: 42. SaveMediaFile(url, userID)
+DB4 --> Media4: 43. OK
+Media4 --> API4: 44. {url}
+API4 --> Frontend4: 45. 200 OK {mediaURL}
+
+Frontend4 -> API4: 46. PUT /auth/profile {avatar, bio}
+API4 -> Auth4: 47. UpdateUser(userID, req)
+Auth4 -> DB4: 48. UPDATE User SET avatar = ?, bio = ? WHERE id = ?
+DB4 --> Auth4: 49. OK
+Auth4 --> API4: 50. User {updated}
+API4 --> Frontend4: 51. 200 OK {user}
+Frontend4 --> User4: 52. Success: Profile updated!
+
+@enduml Mapped_Sequence_Diagram_4
+
+' Scenario 5: Create group, add members and chat
+
+@startuml Mapped_Sequence_Diagram_5
+
+== Scenario 5: Create Group, Chat and Message Exchange ==
+
+actor "User 1\n(Owner)" as User5A
+participant "Frontend 1" as Frontend5A
+participant "API Gateway" as API5
+participant "Places Service" as Places5
+participant "Chat Service" as Chat5
+participant "Database" as DB5
+actor "User 2\n(Member)" as User5B
+participant "Frontend 2" as Frontend5B
+
+User5A -> Frontend5A: 1. Open group creation form
+User5A -> Frontend5A: 2. Enter group name and description
+Frontend5A -> API5: 3. POST /places/groups/create {name, description}
+API5 -> Places5: 4. CreateGroup(ownerID, req)
+Places5 -> DB5: 5. INSERT Group {ownerID, name, description}
+DB5 --> Places5: 6. OK, groupID = 999
+Places5 -> DB5: 7. INSERT GroupMember {groupID, userID, role: owner}
+DB5 --> Places5: 8. OK
+Places5 --> API5: 9. {groupID, name}
+API5 --> Frontend5A: 10. 201 Created {group}
+Frontend5A --> User5A: 11. Success: Group created! ID = 999
+
+User5A -> Frontend5A: 12. Click Invite Members
+Frontend5A -> API5: 13. POST /places/groups/{groupID}/add-member {targetUserID}
+API5 -> Places5: 14. AddGroupMember(groupID, requesterID, targetUserID)
+Places5 -> DB5: 15. SELECT Group WHERE id = groupID AND ownerID = requesterID
+DB5 --> Places5: 16. OK (check permissions)
+Places5 -> DB5: 17. INSERT GroupMember {groupID, userID: targetUserID, role: member}
+DB5 --> Places5: 18. OK
+Places5 --> API5: 19. {success}
+API5 --> Frontend5A: 20. 201 Created
+Frontend5A --> User5A: 21. Success: Member added!
+
+User5A -> Frontend5A: 22. Open group chat (group 999)
+Frontend5A -> API5: 23. GET /chat/group/{groupID}/messages?limit=50
+API5 -> Chat5: 24. GetMessages(chatID, limit)
+Chat5 -> DB5: 25. SELECT * FROM ChatMessage WHERE chatID = ? ORDER BY createdAt DESC
+DB5 --> Chat5: 26. []ChatMessage
+Chat5 --> API5: 27. []ChatMessage
+API5 --> Frontend5A: 28. 200 OK {messages[]}
+Frontend5A --> User5A: 29. Load chat history
+
+User5A -> Frontend5A: 30. Enter message with photo
+Frontend5A -> API5: 31. POST /media/upload {photo}
+API5 -> Places5: 32. UploadFile(file, userID)
+Places5 --> API5: 33. {mediaURL}
+API5 --> Frontend5A: 34. 200 OK
+
+Frontend5A -> API5: 35. POST /chat/{chatID}/send {text, attachments[]}
+API5 -> Chat5: 36. SendMessage(chatID, userID, text)
+Chat5 -> DB5: 37. INSERT ChatMessage {chatID, userID, username, text}
+DB5 --> Chat5: 38. OK, messageID = 555
+Chat5 -> DB5: 39. INSERT MessageAttachment {messageID, url, type}
+DB5 --> Chat5: 40. OK
+Chat5 --> API5: 41. {messageID, createdAt}
+API5 --> Frontend5A: 42. 201 Created
+Frontend5A --> User5A: 43. Success: Message sent!
+
+Frontend5A -> Frontend5A: 44. WebSocket: Broadcast message to others in chat
+Frontend5B -> Frontend5B: 45. WebSocket: Receive new message
+Frontend5B --> User5B: 46. New message: User1: Text + photo
+
+User5B -> Frontend5B: 47. Reply to message
+Frontend5B -> API5: 48. POST /chat/{chatID}/send {text: Reply}
+API5 -> Chat5: 49. SendMessage(chatID, User2ID, Reply)
+Chat5 -> DB5: 50. INSERT ChatMessage
+DB5 --> Chat5: 51. OK, messageID = 556
+Chat5 --> API5: 52. {success}
+API5 --> Frontend5B: 53. 201 Created
+Frontend5B --> User5B: 54. Success: Reply sent!
+
+Frontend5B -> Frontend5B: 55. WebSocket: Broadcast reply to User1
+Frontend5A -> Frontend5A: 56. WebSocket: Receive reply
+Frontend5A --> User5A: 57. User2 replied: Reply
+
+@enduml Mapped_Sequence_Diagram_5

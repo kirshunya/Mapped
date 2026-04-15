@@ -1,0 +1,536 @@
+%% Mapped - Sequence Diagrams (UML 2.0)
+%% 5 main usage scenarios for the Mapped microservices architecture
+
+%% SCENARIO 1: Creating a post linked to a place with media
+%% ===========================================================
+
+sequenceDiagram
+    title Scenario 1: Create Post with Place and Media
+
+    actor User
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant PostsService as Posts Service
+    participant PlacesService as Places Service
+    participant MediaService as Media Service
+    participant Database as Database
+    participant FileStorage as File Storage
+
+    User->>Frontend: 1. Open post creation form
+    Frontend->>Frontend: 2. Load image locally
+    
+    User->>Frontend: 3. Enter post content and select place
+    Frontend->>APIGateway: 4. POST /media/upload (file)
+    APIGateway->>MediaService: 5. UploadFile(file, userID)
+    MediaService->>FileStorage: 6. Save file
+    FileStorage-->>MediaService: 7. Return media URL
+    MediaService->>Database: 8. SaveMediaFile(url, name, size, userID)
+    Database-->>MediaService: 9. OK, ID = 123
+    MediaService-->>APIGateway: 10. {url, id}
+    APIGateway-->>Frontend: 11. 200 OK {mediaURL}
+    
+    Frontend->>APIGateway: 12. POST /posts/create {content, mediaURLs[], placeID}
+    APIGateway->>PostsService: 13. CreatePost(userID, username, req)
+    PostsService->>PostsService: 14. Validate (content not empty)
+    PostsService->>PlacesService: 15. GetPlace(placeID, userID)
+    PlacesService->>Database: 16. SELECT Place WHERE id = placeID
+    Database-->>PlacesService: 17. Place {id, name, rating}
+    PlacesService-->>PostsService: 18. Place OK
+    PostsService->>Database: 19. INSERT Post {userID, username, content, mediaURLs, placeID}
+    Database-->>PostsService: 20. OK, postID = 456
+    PostsService->>Database: 21. UPDATE Place SET LikeCount + 1 WHERE id = placeID
+    Database-->>PostsService: 22. OK
+    PostsService-->>APIGateway: 23. {postID, createdAt}
+    APIGateway-->>Frontend: 24. 201 Created {post}
+    Frontend-->>User: 25. Success: Post created!
+
+%% SCENARIO 2: Like place and create review with rating
+%% =====================================================
+
+sequenceDiagram
+    title Scenario 2: Like Place and Create Review with Media
+
+    actor User
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant PlacesService as Places Service
+    participant ReviewsService as Reviews Service
+    participant MediaService as Media Service
+    participant Database as Database
+    participant FileStorage as File Storage
+
+    User->>Frontend: 1. Open place page
+    Frontend->>APIGateway: 2. GET /places/{placeID}
+    APIGateway->>PlacesService: 3. GetPlace(placeID, userID)
+    PlacesService->>Database: 4. SELECT Place WHERE id = placeID
+    Database-->>PlacesService: 5. Place {name, rating, reviewCount}
+    PlacesService-->>APIGateway: 6. PlaceResponse
+    APIGateway-->>Frontend: 7. 200 OK {place, liked, disliked}
+    Frontend-->>User: 8. Display place information
+
+    User->>Frontend: 9. Click like on place
+    Frontend->>APIGateway: 10. POST /places/{placeID}/like {type: like}
+    APIGateway->>PlacesService: 11. LikePlace(placeID, userID, type)
+    PlacesService->>Database: 12. INSERT PlaceLike {placeID, userID, type}
+    Database-->>PlacesService: 13. OK, likeID = 789
+    PlacesService->>Database: 14. UPDATE Place SET LikeCount = LikeCount + 1
+    Database-->>PlacesService: 15. OK
+    PlacesService-->>APIGateway: 16. {likeID, success}
+    APIGateway-->>Frontend: 17. 201 Created
+    Frontend-->>User: 18. Success: Place liked!
+
+    User->>Frontend: 19. Fill review form (rating 4.5, text, photo)
+    Frontend->>Frontend: 20. Load review photo locally
+    Frontend->>APIGateway: 21. POST /media/upload {photo}
+    APIGateway->>MediaService: 22. UploadFile(file, userID)
+    MediaService->>FileStorage: 23. Save image
+    FileStorage-->>MediaService: 24. Return URL
+    MediaService->>Database: 25. SaveMediaFile(url)
+    Database-->>MediaService: 26. OK
+    MediaService-->>APIGateway: 27. {url}
+    APIGateway-->>Frontend: 28. 200 OK
+
+    Frontend->>APIGateway: 29. POST /reviews/create {placeID, rating: 4.5, content, mediaURLs}
+    APIGateway->>ReviewsService: 30. CreateReview(userID, username, req)
+    ReviewsService->>ReviewsService: 31. Validate (rating 0-5, content less than 5000 chars)
+    ReviewsService->>Database: 32. INSERT Review {placeID, userID, rating, content, mediaURLs}
+    Database-->>ReviewsService: 33. OK, reviewID = 111
+    ReviewsService->>PlacesService: 34. UpdatePlaceRating(placeID, newRating)
+    PlacesService->>Database: 35. SELECT AVG(rating) FROM Review WHERE placeID = ?
+    Database-->>PlacesService: 36. avgRating = 4.3
+    PlacesService->>Database: 37. UPDATE Place SET Rating = 4.3, ReviewCount = ReviewCount + 1
+    Database-->>PlacesService: 38. OK
+    PlacesService-->>ReviewsService: 39. OK
+    ReviewsService-->>APIGateway: 40. {reviewID, createdAt}
+    APIGateway-->>Frontend: 41. 201 Created {review}
+    Frontend-->>User: 42. Success: Review published!
+
+%% SCENARIO 3: Search nearby places and view details
+%% =================================================
+
+sequenceDiagram
+    title Scenario 3: Geo-Search Nearby Places and View Reviews
+
+    actor User
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant PlacesService as Places Service
+    participant ReviewsService as Reviews Service
+    participant Database as Database
+
+    User->>Frontend: 1. Open map with current location
+    Frontend->>Frontend: 2. Get GPS coordinates (lat: 55.75, lng: 37.62)
+
+    Frontend->>APIGateway: 3. GET /places/nearby?lat=55.75&lng=37.62&radius=5km
+    APIGateway->>PlacesService: 4. GetNearbyPlaces(lat, lng, radius, userID)
+    PlacesService->>Database: 5. SELECT * FROM Place WHERE distance(lat,lng) less than radius
+    Database-->>PlacesService: 6. [Place1, Place2, Place3, ..., Place10]
+    PlacesService->>PlacesService: 7. Sort by rating
+    PlacesService-->>APIGateway: 8. []PlaceResponse {place, liked, disliked}
+    APIGateway-->>Frontend: 9. 200 OK {places[]}
+    Frontend-->>User: 10. Display 10 places on map
+
+    User->>Frontend: 11. Click on place (placeID = 456)
+    Frontend->>APIGateway: 12. GET /places/{placeID}
+    APIGateway->>PlacesService: 13. GetPlace(placeID, userID)
+    PlacesService->>Database: 14. SELECT Place WHERE id = 456
+    Database-->>PlacesService: 15. Place {name, desc, rating, reviewCount}
+    PlacesService-->>APIGateway: 16. PlaceResponse
+    APIGateway-->>Frontend: 17. 200 OK {place}
+    Frontend-->>User: 18. Open place card with details
+
+    User->>Frontend: 19. Scroll to reviews and click View All
+    Frontend->>APIGateway: 20. GET /places/{placeID}/reviews?limit=10&offset=0
+    APIGateway->>ReviewsService: 21. GetPlaceReviews(placeID, limit, offset)
+    ReviewsService->>Database: 22. SELECT * FROM Review WHERE placeID = 456 LIMIT 10 OFFSET 0
+    Database-->>ReviewsService: 23. [Review1, Review2, ..., Review10]
+    ReviewsService->>ReviewsService: 24. Add user info (username, avatar)
+    ReviewsService-->>APIGateway: 25. []Review {content, rating, createdAt, author}
+    APIGateway-->>Frontend: 26. 200 OK {reviews[]}
+    Frontend-->>User: 27. Display all reviews with ratings
+
+    User->>Frontend: 28. Mark as place viewed
+    Frontend->>APIGateway: 29. POST /places/{placeID}/view {timestamp}
+    APIGateway->>PlacesService: 30. RecordPlaceView(placeID, userID)
+    PlacesService->>Database: 31. INSERT PlaceView {placeID, userID, viewedAt}
+    Database-->>PlacesService: 32. OK
+    PlacesService-->>APIGateway: 33. {success}
+    APIGateway-->>Frontend: 34. 201 Created
+    Frontend-->>User: 35. Success: View recorded
+
+%% SCENARIO 4: Registration, login and profile update
+%% ==================================================
+
+sequenceDiagram
+    title Scenario 4: Registration, Authentication and Profile
+
+    actor User
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant AuthService as Auth Service
+    participant Database as Database
+    participant MediaService as Media Service
+    participant FileStorage as File Storage
+
+    User->>Frontend: 1. Open registration page
+    User->>Frontend: 2. Enter email, username, password
+    Frontend->>APIGateway: 3. POST /auth/register {email, username, password}
+    APIGateway->>AuthService: 4. Register(req: RegisterRequest)
+    AuthService->>AuthService: 5. Validate (email not empty, password 8+ chars)
+    AuthService->>Database: 6. SELECT User WHERE email = ?
+    Database-->>AuthService: 7. No results (email available)
+    AuthService->>AuthService: 8. Hash password (bcrypt)
+    AuthService->>Database: 9. INSERT User {email, username, hashedPassword, role: user}
+    Database-->>AuthService: 10. OK, userID = 789
+    AuthService->>AuthService: 11. Generate JWT token {userID, role, exp}
+    AuthService-->>APIGateway: 12. AuthResponse {token, user{userID, username, role}}
+    APIGateway-->>Frontend: 13. 201 Created {token}
+    Frontend->>Frontend: 14. Save token in localStorage
+    Frontend-->>User: 15. Success: Registration complete! Go to home
+
+    User->>Frontend: 16. (Login) Open login form
+    User->>Frontend: 17. Enter email and password
+    Frontend->>APIGateway: 18. POST /auth/login {email, password}
+    APIGateway->>AuthService: 19. Login(req: LoginRequest)
+    AuthService->>Database: 20. SELECT User WHERE email = ?
+    Database-->>AuthService: 21. User {userID, username, hashedPassword, role}
+    AuthService->>AuthService: 22. Compare password (bcrypt.CompareHashAndPassword)
+    AuthService->>AuthService: 23. OK: Passwords match
+    AuthService->>AuthService: 24. Generate new JWT token
+    AuthService-->>APIGateway: 25. AuthResponse {token, user}
+    APIGateway-->>Frontend: 26. 200 OK {token}
+    Frontend->>Frontend: 27. Update localStorage with new token
+    Frontend-->>User: 28. Success: Login complete!
+
+    User->>Frontend: 29. Open profile (My Profile)
+    Frontend->>APIGateway: 30. GET /auth/profile (with Authorization: Bearer token)
+    APIGateway->>AuthService: 31. GetUserByID(userID) + ValidateToken(token)
+    AuthService->>Database: 32. SELECT User WHERE id = userID
+    Database-->>AuthService: 33. User {id, email, username, avatar, bio}
+    AuthService-->>APIGateway: 34. User
+    APIGateway-->>Frontend: 35. 200 OK {user}
+    Frontend-->>User: 36. Display profile (avatar, bio, email)
+
+    User->>Frontend: 37. Update avatar (upload new photo)
+    Frontend->>APIGateway: 38. POST /media/upload {file}
+    APIGateway->>MediaService: 39. UploadFile(file, userID)
+    MediaService->>FileStorage: 40. Save file
+    FileStorage-->>MediaService: 41. URL = /media/user_789_avatar.jpg
+    MediaService->>Database: 42. SaveMediaFile(url, userID)
+    Database-->>MediaService: 43. OK
+    MediaService-->>APIGateway: 44. {url}
+    APIGateway-->>Frontend: 45. 200 OK {mediaURL}
+
+    Frontend->>APIGateway: 46. PUT /auth/profile {avatar, bio}
+    APIGateway->>AuthService: 47. UpdateUser(userID, req)
+    AuthService->>Database: 48. UPDATE User SET avatar = ?, bio = ? WHERE id = ?
+    Database-->>AuthService: 49. OK
+    AuthService-->>APIGateway: 50. User {updated}
+    APIGateway-->>Frontend: 51. 200 OK {user}
+    Frontend-->>User: 52. Success: Profile updated!
+
+%% SCENARIO 5: Create group, add members and chat
+%% =============================================
+
+sequenceDiagram
+    title Scenario 5: Create Group, Chat and Message Exchange
+
+    actor User1 as User 1 (Owner)
+    participant Frontend1 as Frontend 1
+    participant APIGateway as API Gateway
+    participant PlacesService as Places Service
+    participant ChatService as Chat Service
+    participant Database as Database
+    actor User2 as User 2 (Member)
+    participant Frontend2 as Frontend 2
+
+    User1->>Frontend1: 1. Open group creation form
+    User1->>Frontend1: 2. Enter group name and description
+    Frontend1->>APIGateway: 3. POST /places/groups/create {name, description}
+    APIGateway->>PlacesService: 4. CreateGroup(ownerID, req)
+    PlacesService->>Database: 5. INSERT Group {ownerID, name, description}
+    Database-->>PlacesService: 6. OK, groupID = 999
+    PlacesService->>Database: 7. INSERT GroupMember {groupID, userID, role: owner}
+    Database-->>PlacesService: 8. OK
+    PlacesService-->>APIGateway: 9. {groupID, name}
+    APIGateway-->>Frontend1: 10. 201 Created {group}
+    Frontend1-->>User1: 11. Success: Group created! ID = 999
+
+    User1->>Frontend1: 12. Click Invite Members
+    Frontend1->>APIGateway: 13. POST /places/groups/{groupID}/add-member {targetUserID}
+    APIGateway->>PlacesService: 14. AddGroupMember(groupID, requesterID, targetUserID)
+    PlacesService->>Database: 15. SELECT Group WHERE id = groupID AND ownerID = requesterID
+    Database-->>PlacesService: 16. OK (check permissions)
+    PlacesService->>Database: 17. INSERT GroupMember {groupID, userID: targetUserID, role: member}
+    Database-->>PlacesService: 18. OK
+    PlacesService-->>APIGateway: 19. {success}
+    APIGateway-->>Frontend1: 20. 201 Created
+    Frontend1-->>User1: 21. Success: Member added!
+
+    User1->>Frontend1: 22. Open group chat (group 999)
+    Frontend1->>APIGateway: 23. GET /chat/group/{groupID}/messages?limit=50
+    APIGateway->>ChatService: 24. GetMessages(chatID, limit)
+    ChatService->>Database: 25. SELECT * FROM ChatMessage WHERE chatID = ? ORDER BY createdAt DESC
+    Database-->>ChatService: 26. []ChatMessage
+    ChatService-->>APIGateway: 27. []ChatMessage
+    APIGateway-->>Frontend1: 28. 200 OK {messages[]}
+    Frontend1-->>User1: 29. Load chat history
+
+    User1->>Frontend1: 30. Enter message with photo
+    Frontend1->>APIGateway: 31. POST /media/upload {photo}
+    APIGateway->>PlacesService: 32. UploadFile(file, userID)
+    PlacesService-->>APIGateway: 33. {mediaURL}
+    APIGateway-->>Frontend1: 34. 200 OK
+
+    Frontend1->>APIGateway: 35. POST /chat/{chatID}/send {text, attachments[]}
+    APIGateway->>ChatService: 36. SendMessage(chatID, userID, text)
+    ChatService->>Database: 37. INSERT ChatMessage {chatID, userID, username, text}
+    Database-->>ChatService: 38. OK, messageID = 555
+    ChatService->>Database: 39. INSERT MessageAttachment {messageID, url, type}
+    Database-->>ChatService: 40. OK
+    ChatService-->>APIGateway: 41. {messageID, createdAt}
+    APIGateway-->>Frontend1: 42. 201 Created
+    Frontend1-->>User1: 43. Success: Message sent!
+
+    Frontend1->>Frontend1: 44. WebSocket: Broadcast message to others in chat
+    Frontend2->>Frontend2: 45. WebSocket: Receive new message
+    Frontend2-->>User2: 46. New message: User1: Text + photo
+
+    User2->>Frontend2: 47. Reply to message
+    Frontend2->>APIGateway: 48. POST /chat/{chatID}/send {text: Reply}
+    APIGateway->>ChatService: 49. SendMessage(chatID, User2ID, Reply)
+    ChatService->>Database: 50. INSERT ChatMessage
+    Database-->>ChatService: 51. OK, messageID = 556
+    ChatService-->>APIGateway: 52. {success}
+    APIGateway-->>Frontend2: 53. 201 Created
+    Frontend2-->>User2: 54. Success: Reply sent!
+
+    Frontend2->>Frontend2: 55. WebSocket: Broadcast reply to User1
+    Frontend1->>Frontend1: 56. WebSocket: Receive reply
+    Frontend1-->>User1: 57. User2 replied: Reply
+
+%% SCENARIO 6: Create Place/Marker on Map
+%% ======================================
+
+sequenceDiagram
+    title Scenario 6: Create Place/Marker on Map
+
+    actor User
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant PlacesService as Places Service
+    participant MediaService as Media Service
+    participant Database as Database
+    participant FileStorage as File Storage
+
+    User->>Frontend: 1. Open map and click Add Place
+    Frontend->>Frontend: 2. Show place creation form
+
+    User->>Frontend: 3. Enter place name and description
+    User->>Frontend: 4. Pin location on map (lat: 55.75, lng: 37.62)
+    User->>Frontend: 5. Select category (e.g., restaurant)
+    User->>Frontend: 6. Upload place photos
+
+    Frontend->>APIGateway: 7. POST /media/upload {photos[]}
+    APIGateway->>MediaService: 8. UploadFiles(files, userID)
+    MediaService->>FileStorage: 9. Save each file
+    FileStorage-->>MediaService: 10. Return URLs[]
+    MediaService->>Database: 11. SaveMediaFile for each
+    Database-->>MediaService: 12. OK
+    MediaService-->>APIGateway: 13. {mediaURLs[]}
+    APIGateway-->>Frontend: 14. 200 OK {mediaURLs[]}
+
+    Frontend->>APIGateway: 15. POST /places/create {name, description, lat, lng, category, mediaURLs[]}
+    APIGateway->>PlacesService: 16. CreatePlace(userID, username, userAvatar, req)
+    PlacesService->>PlacesService: 17. Validate (name not empty, coordinates valid)
+    PlacesService->>Database: 18. INSERT Place {name, description, lat, lng, category, mediaURLs, userID}
+    Database-->>PlacesService: 19. OK, placeID = 888
+    PlacesService-->>APIGateway: 20. {placeID, createdAt}
+    APIGateway-->>Frontend: 21. 201 Created {place}
+    Frontend-->>User: 22. Success: Place created at coordinates!
+
+    Frontend->>Frontend: 23. Update map with new place marker
+    Frontend-->>User: 24. Display new place on map
+
+%% SCENARIO 7: Delete Post
+%% =======================
+
+sequenceDiagram
+    title Scenario 7: Delete Post
+
+    actor User
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant PostsService as Posts Service
+    participant Database as Database
+
+    User->>Frontend: 1. Open post details
+    Frontend->>APIGateway: 2. GET /posts/{postID}
+    APIGateway->>PostsService: 3. GetPost(postID, userID)
+    PostsService->>Database: 4. SELECT Post WHERE id = postID
+    Database-->>PostsService: 5. Post {userID, content, mediaURLs}
+    PostsService-->>APIGateway: 6. PostResponse
+    APIGateway-->>Frontend: 7. 200 OK {post}
+    Frontend-->>User: 8. Display post content
+
+    User->>Frontend: 9. Click delete button
+    Frontend->>Frontend: 10. Show confirmation dialog
+
+    User->>Frontend: 11. Confirm delete
+    Frontend->>APIGateway: 12. DELETE /posts/{postID}
+    APIGateway->>PostsService: 13. DeletePost(postID, userID)
+    PostsService->>Database: 14. SELECT Post WHERE id = postID
+    Database-->>PostsService: 15. Post {userID}
+    PostsService->>PostsService: 16. Check ownership
+    PostsService->>Database: 17. DELETE Post WHERE id = postID
+    Database-->>PostsService: 18. OK
+    PostsService-->>APIGateway: 19. {success}
+    APIGateway-->>Frontend: 20. 200 OK
+    Frontend-->>User: 21. Success: Post deleted!
+
+    Frontend->>Frontend: 22. Redirect to feed
+    Frontend-->>User: 23. Show updated feed
+
+%% SCENARIO 8: Edit Place Details
+%% ===============================
+
+sequenceDiagram
+    title Scenario 8: Edit Place Details
+
+    actor User
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant PlacesService as Places Service
+    participant MediaService as Media Service
+    participant Database as Database
+    participant FileStorage as File Storage
+
+    User->>Frontend: 1. Open place page
+    Frontend->>APIGateway: 2. GET /places/{placeID}
+    APIGateway->>PlacesService: 3. GetPlace(placeID, userID)
+    PlacesService->>Database: 4. SELECT Place WHERE id = placeID
+    Database-->>PlacesService: 5. Place {name, description, category, mediaURLs}
+    PlacesService-->>APIGateway: 6. PlaceResponse
+    APIGateway-->>Frontend: 7. 200 OK {place}
+    Frontend-->>User: 8. Display place details
+
+    User->>Frontend: 9. Click Edit button
+    Frontend->>Frontend: 10. Show edit form with current data
+
+    User->>Frontend: 11. Update name and description
+    User->>Frontend: 12. Add new photo
+
+    Frontend->>APIGateway: 13. POST /media/upload {newPhoto}
+    APIGateway->>MediaService: 14. UploadFile(file, userID)
+    MediaService->>FileStorage: 15. Save file
+    FileStorage-->>MediaService: 16. Return URL
+    MediaService->>Database: 17. SaveMediaFile(url)
+    Database-->>MediaService: 18. OK
+    MediaService-->>APIGateway: 19. {url}
+    APIGateway-->>Frontend: 20. 200 OK {mediaURL}
+
+    Frontend->>APIGateway: 21. PUT /places/{placeID} {name, description, mediaURLs[]}
+    APIGateway->>PlacesService: 22. UpdatePlace(placeID, userID, req)
+    PlacesService->>Database: 23. SELECT Place WHERE id = placeID AND userID = userID
+    Database-->>PlacesService: 24. Place found (ownership verified)
+    PlacesService->>Database: 25. UPDATE Place SET name = ?, description = ?, mediaURLs = ?
+    Database-->>PlacesService: 26. OK
+    PlacesService-->>APIGateway: 27. {place}
+    APIGateway-->>Frontend: 28. 200 OK {place}
+    Frontend-->>User: 29. Success: Place updated!
+
+%% SCENARIO 9: Follow User
+%% ======================
+
+sequenceDiagram
+    title Scenario 9: Follow User
+
+    actor User as User (Follower)
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant AuthService as Auth Service
+    participant Database as Database
+    actor TargetUser as Target User
+    participant Frontend2 as Frontend 2
+
+    User->>Frontend: 1. Open user profile (targetUserID)
+    Frontend->>APIGateway: 2. GET /auth/users/{targetUserID}
+    APIGateway->>AuthService: 3. GetUserByID(targetUserID)
+    AuthService->>Database: 4. SELECT User WHERE id = targetUserID
+    Database-->>AuthService: 5. User {username, avatar, bio, followerCount}
+    AuthService-->>APIGateway: 6. User
+    APIGateway-->>Frontend: 7. 200 OK {user}
+    Frontend-->>User: 8. Display user profile
+
+    User->>Frontend: 9. Click Follow button
+    Frontend->>APIGateway: 10. POST /auth/users/{targetUserID}/follow
+    APIGateway->>AuthService: 11. FollowUser(followerID, targetUserID)
+    AuthService->>Database: 12. SELECT Follow WHERE followerID = ? AND targetUserID = ?
+    Database-->>AuthService: 13. Not found (not following yet)
+    AuthService->>Database: 14. INSERT Follow {followerID, targetUserID}
+    Database-->>AuthService: 15. OK, followID = 555
+    AuthService->>Database: 16. UPDATE User SET followerCount = followerCount + 1 WHERE id = targetUserID
+    Database-->>AuthService: 17. OK
+    AuthService-->>APIGateway: 18. {success}
+    APIGateway-->>Frontend: 19. 201 Created
+    Frontend-->>User: 20. Success: Now following!
+
+    Frontend->>Frontend: 21. Update UI (button changes to Following)
+    Frontend-->>User: 22. Display Following state
+
+    Frontend2->>Frontend2: 23. WebSocket: Receive notification
+    Frontend2-->>TargetUser: 24. New follower: User started following you
+
+    TargetUser->>Frontend2: 25. Open followers list
+    Frontend2->>APIGateway: 26. GET /auth/users/{targetUserID}/followers
+    APIGateway->>AuthService: 27. GetFollowers(targetUserID)
+    AuthService->>Database: 28. SELECT Follow WHERE targetUserID = ?
+    Database-->>AuthService: 29. [Follow1, Follow2, ...]
+    AuthService-->>APIGateway: 30. []User
+    APIGateway-->>Frontend2: 31. 200 OK {followers[]}
+    Frontend2-->>TargetUser: 32. Display followers list
+
+%% SCENARIO 10: Search Posts in Feed
+%% =================================
+
+sequenceDiagram
+    title Scenario 10: Search Posts in Feed
+
+    actor User
+    participant Frontend as Frontend (React)
+    participant APIGateway as API Gateway
+    participant PostsService as Posts Service
+    participant PlacesService as Places Service
+    participant Database as Database
+
+    User->>Frontend: 1. Open main feed
+    Frontend->>APIGateway: 2. GET /posts/feed?limit=20&offset=0
+    APIGateway->>PostsService: 3. GetFeed(userID, limit, offset)
+    PostsService->>Database: 4. SELECT Post ORDER BY createdAt DESC LIMIT 20 OFFSET 0
+    Database-->>PostsService: 5. [Post1, Post2, ..., Post20]
+    PostsService->>PostsService: 6. Add user info for each post
+    PostsService-->>APIGateway: 7. []PostResponse
+    APIGateway-->>Frontend: 8. 200 OK {posts[]}
+    Frontend-->>User: 9. Display feed with posts
+
+    User->>Frontend: 10. Enter search query (e.g., "coffee")
+    Frontend->>APIGateway: 11. GET /posts/search?q=coffee&limit=20
+    APIGateway->>PostsService: 12. SearchPosts(query, limit)
+    PostsService->>Database: 13. SELECT Post WHERE content LIKE '%coffee%'
+    Database-->>PostsService: 14. [Post1, Post3, Post7]
+    PostsService->>PlacesService: 15. GetPlaceNames([placeIDs])
+    PlacesService->>Database: 16. SELECT Place WHERE id IN (...)
+    Database-->>PlacesService: 17. [Place1, Place2]
+    PlacesService-->>PostsService: 18. []Place
+    PostsService-->>APIGateway: 19. []PostResponse with places
+    APIGateway-->>Frontend: 20. 200 OK {posts[]}
+    Frontend-->>User: 21. Display filtered posts
+
+    User->>Frontend: 22. Click on place tag in post
+    Frontend->>APIGateway: 23. GET /places/{placeID}
+    APIGateway->>PlacesService: 24. GetPlace(placeID, userID)
+    PlacesService->>Database: 25. SELECT Place WHERE id = placeID
+    Database-->>PlacesService: 26. Place {name, rating, address}
+    PlacesService-->>APIGateway: 27. PlaceResponse
+    APIGateway-->>Frontend: 28. 200 OK {place}
+    Frontend-->>User: 29. Navigate to place page

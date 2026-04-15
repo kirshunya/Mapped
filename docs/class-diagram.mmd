@@ -1,0 +1,675 @@
+%% Mapped - UML Class Diagram (44 classes)
+%% Generated: 2026-04-10
+%% Standard: UML 2.0
+%% 
+%% Legend:
+%% --------- Association (simple line)
+%% o------ Aggregation (empty diamond)
+%% *------ Composition (filled diamond)
+%% ..> Dependency (dashed line)
+%% --|> Generalization (empty triangle)
+%% ..|> Realization (dashed triangle)
+
+classDiagram
+    direction TB
+
+    %% ══════════════════════════════════════════
+    %% AUTH SERVICE (7 classes)
+    %% ══════════════════════════════════════════
+    
+    class User {
+        <<Entity>>
+        +uint ID
+        +string Email
+        +string Username
+        -string Password
+        +Role Role
+        +string Avatar
+        +string Bio
+        +bool IsActive
+        +time.Time CreatedAt
+        +time.Time UpdatedAt
+        -gorm.DeletedAt DeletedAt
+    }
+
+    class Role {
+        <<Enumeration>>
+        user
+        moderator
+        admin
+    }
+
+    class AuthService {
+        <<Service>>
+        -repo AuthRepository
+        -jwtSecret string
+        -jwtExpiry time.Duration
+        +Register(req RegisterRequest) AuthResponse
+        +Login(req LoginRequest) AuthResponse
+        +GetUserByID(id uint) User
+        +GetAllUsers() []User
+        +UpdateUser(userID uint, req UpdateUserRequest) User
+        +ChangeRole(adminID uint, req ChangeRoleRequest) error
+        +SearchUsers(query string, limit int, excludeID uint) []User
+        +ValidateToken(tokenString string) (uint, string, error)
+        -generateToken(userID uint, role string) string
+    }
+
+    class AuthRepository {
+        <<Repository>>
+        -db gorm.DB
+        +CreateUser(user User) error
+        +GetUserByEmail(email string) User
+        +GetUserByID(id uint) User
+        +GetAllUsers() []User
+        +UpdateUser(user User) error
+        +UpdateRole(userID uint, role Role) error
+        +DeleteUser(id uint) error
+        +SearchUsers(query string, limit int, excludeID uint) []User
+    }
+
+    class RegisterRequest {
+        <<DTO Request>>
+        +string Email
+        +string Username
+        +string Password
+    }
+
+    class LoginRequest {
+        <<DTO Request>>
+        +string Email
+        +string Password
+    }
+
+    class AuthResponse {
+        <<DTO Response>>
+        +string Token
+        +User User
+    }
+
+    %% ══════════════════════════════════════════
+    %% CHAT SERVICE (6 classes)
+    %% ══════════════════════════════════════════
+    
+    class Chat {
+        <<Entity>>
+        +uint ID
+        +string Name
+        +string Type
+        +uint OwnerID
+        +time.Time CreatedAt
+    }
+
+    class ChatMember {
+        <<Entity>>
+        +uint ID
+        +uint ChatID
+        +uint UserID
+        +string Username
+        +string Role
+    }
+
+    class ChatMessage {
+        <<Entity>>
+        +uint ID
+        +uint ChatID
+        +uint UserID
+        +string Username
+        +string Text
+        +time.Time CreatedAt
+    }
+
+    class MessageAttachment {
+        <<Entity>>
+        +uint ID
+        +uint MessageID
+        +string URL
+        +string Type
+        +string Name
+        +int64 Size
+        +time.Time CreatedAt
+    }
+
+    class ChatService {
+        <<Service>>
+        -repo ChatRepository
+        +CreateChat(ownerID uint, username string, req CreateChatRequest) Chat
+        +GetChats(userID uint) []Chat
+        +SendMessage(chatID uint, userID uint, username string, text string) ChatMessage
+        +GetMessages(chatID uint, limit int) []ChatMessage
+        +CanAccessChat(chatID uint, userID uint) bool
+    }
+
+    class ChatRepository {
+        <<Repository>>
+        -db gorm.DB
+        +CreateChat(chat Chat) error
+        +AddMember(member ChatMember) error
+        +GetChats(userID uint) []Chat
+        +CreateMessage(message ChatMessage) error
+        +GetMessages(chatID uint, limit int) []ChatMessage
+        +IsChatMember(chatID uint, userID uint) bool
+        +FindDirectChat(user1ID uint, user2ID uint) Chat
+    }
+
+    %% ══════════════════════════════════════════
+    %% MEDIA SERVICE (3 classes)
+    %% ══════════════════════════════════════════
+    
+    class MediaFile {
+        <<Entity>>
+        +uint ID
+        +string URL
+        +string Name
+        +int64 Size
+        +string MimeType
+        +uint OwnerID
+        +time.Time CreatedAt
+    }
+
+    class MediaPresenter {
+        <<Service>>
+        -repo MediaRepository
+        -publicURL string
+        +UploadFile(file multipart.FileHeader, userID uint) string
+        +DeleteFile(url string) error
+    }
+
+    class MediaRepository {
+        <<Repository>>
+        -storagePath string
+        +IsAvailable() bool
+        +Upload(path string, reader io.Reader, size int64, contentType string) string
+        +Delete(path string) error
+        +ToMediaFile(url string, name string, mimeType string, ownerID uint) MediaFile
+    }
+
+    %% ══════════════════════════════════════════
+    %% PLACES SERVICE (11 classes)
+    %% ══════════════════════════════════════════
+    
+    class Place {
+        <<Entity>>
+        +uint ID
+        +string Name
+        +string Description
+        +float64 Latitude
+        +float64 Longitude
+        +string Address
+        +string Category
+        +Privacy Privacy
+        +ApprovalStatus Approval
+        +uint* GroupID
+        +float64 Rating
+        +int ReviewCount
+        +int LikeCount
+        +uint UserID
+        +string Username
+        +string UserAvatar
+        +string MediaURLs
+        +bool IsVerified
+        +bool IsDeleted
+        +time.Time CreatedAt
+        +time.Time UpdatedAt
+    }
+
+    class Privacy {
+        <<Enumeration>>
+        public
+        private
+        group
+    }
+
+    class ApprovalStatus {
+        <<Enumeration>>
+        pending
+        approved
+        rejected
+    }
+
+    class Group {
+        <<Entity>>
+        +uint ID
+        +string Name
+        +string Description
+        +uint OwnerID
+        +time.Time CreatedAt
+    }
+
+    class GroupMember {
+        <<Entity>>
+        +uint ID
+        +uint GroupID
+        +uint UserID
+        +string Role
+        +string Username
+        +string UserAvatar
+        +time.Time JoinedAt
+    }
+
+    class PlaceLike {
+        <<Entity>>
+        +uint ID
+        +uint PlaceID
+        +uint UserID
+        +string Type
+        +time.Time CreatedAt
+    }
+
+    class PlacesService {
+        <<Service>>
+        -repo PlacesRepository
+        +CreatePlace(userID uint, username string, userAvatar string, req CreatePlaceRequest) Place
+        +GetPlace(id uint, userID uint) PlaceResponse
+        +GetNearbyPlaces(lat float64, lng float64, radius float64, userID uint) []Place
+        +GetAllPlaces(userID uint, limit int, offset int, category string, approval string) []Place
+        +GetRecommendations(userID uint, type string, category string, maxDistance float64, limit int) []Place
+        +GetUserPlaces(userID uint, requesterID uint) []Place
+        +UpdatePlace(placeID uint, userID uint, req UpdatePlaceRequest) Place
+        +DeletePlace(placeID uint, userID uint, role string) error
+        +SearchPlaces(query string) []Place
+        +ApprovePlace(placeID uint, status ApprovalStatus) error
+        +UpdateRating(placeID uint, rating float64, reviewCount int) error
+        +GetGroups(userID uint) []GroupResponse
+        +CreateGroup(ownerID uint, ownerUsername string, ownerAvatar string, name string, description string) Group
+        +GetGroup(id uint) Group
+        +JoinGroup(groupID uint, userID uint, username string, avatar string) error
+        +LeaveGroup(groupID uint, userID uint) error
+        +GetGroupMembers(groupID uint) []GroupMember
+        +AddGroupMember(groupID uint, requesterID uint, targetUserID uint, username string, avatar string, role string) error
+    }
+
+    class PlacesRepository {
+        <<Repository>>
+        -db gorm.DB
+        +Create(place Place) error
+        +GetByID(id uint) Place
+        +GetNearby(lat float64, lng float64, radius float64, userID uint) []Place
+        +GetAll(userID uint, limit int, offset int, category string, approval string) []Place
+        +GetRecommendations(userID uint, type string, category string, maxDistance float64, limit int) []Place
+        +GetByUserID(userID uint) []Place
+        +Update(place Place) error
+        +Delete(id uint) error
+        +Search(query string) []Place
+        +UpdateApproval(placeID uint, status ApprovalStatus) error
+        +UpdateRating(placeID uint, rating float64, reviewCount int) error
+        +CreateGroup(group Group) error
+        +GetGroupByID(id uint) Group
+        +GetGroups(userID uint) []GroupResponse
+        +AddGroupMember(groupID uint, userID uint, username string, avatar string, role string) error
+        +RemoveGroupMember(groupID uint, userID uint) error
+        +IsGroupMember(groupID uint, userID uint) bool
+        +IsGroupOwner(groupID uint, userID uint) bool
+        +GetGroupMembers(groupID uint) []GroupMember
+    }
+
+    class CreatePlaceRequest {
+        <<DTO Request>>
+        +string Name
+        +string Description
+        +float64 Latitude
+        +float64 Longitude
+        +string Address
+        +string Category
+        +Privacy Privacy
+        +[]string MediaURLs
+    }
+
+    class PlaceResponse {
+        <<DTO Response>>
+        +Place Place
+        +bool Liked
+        +bool Disliked
+    }
+
+    class GroupResponse {
+        <<DTO Response>>
+        +Group Group
+        +bool IsMember
+    }
+
+    %% ══════════════════════════════════════════
+    %% POSTS SERVICE (11 classes)
+    %% ══════════════════════════════════════════
+    
+    class Post {
+        <<Entity>>
+        +uint ID
+        +uint UserID
+        +string Username
+        +string UserAvatar
+        +string Content
+        +string MediaURLs
+        +uint* PlaceID
+        +string PlaceName
+        +int LikeCount
+        +int CommentCount
+        +time.Time CreatedAt
+        +time.Time UpdatedAt
+    }
+
+    class PostComment {
+        <<Entity>>
+        +uint ID
+        +uint PostID
+        +uint UserID
+        +string Username
+        +string UserAvatar
+        +string Content
+        +string MediaURLs
+        +time.Time CreatedAt
+    }
+
+    class PostReaction {
+        <<Entity>>
+        +uint ID
+        +uint PostID
+        +uint UserID
+        +string Type
+        +time.Time CreatedAt
+    }
+
+    class CommentReaction {
+        <<Entity>>
+        +uint ID
+        +uint CommentID
+        +uint UserID
+        +string Type
+        +time.Time CreatedAt
+    }
+
+    class PostAttachment {
+        <<Entity>>
+        +uint ID
+        +uint PostID
+        +string URL
+        +string Type
+        +string Name
+        +int64 Size
+        +int Position
+        +time.Time CreatedAt
+    }
+
+    class PostView {
+        <<Entity>>
+        +uint ID
+        +uint PostID
+        +uint UserID
+        +time.Time ViewedAt
+        +int Duration
+        +string Source
+        +string DeviceType
+        +string IPAddress
+        +string Country
+        +string City
+    }
+
+    class PostsService {
+        <<Service>>
+        -repo PostsRepository
+        +CreatePost(userID uint, username string, userAvatar string, req CreatePostRequest) Post
+        +GetPost(id uint, userID uint) PostResponse
+        +GetFeed(userID uint, limit int, offset int) []PostResponse
+        +GetUserPosts(targetUserID uint, requesterID uint, limit int, offset int) []PostResponse
+        +DeletePost(postID uint, userID uint) error
+        +CreateComment(postID uint, userID uint, username string, userAvatar string, req CreateCommentRequest) PostComment
+        +GetComments(postID uint, userID uint) []CommentResponse
+        +DeleteComment(commentID uint, userID uint) error
+        +ReactToPost(postID uint, userID uint, reactionType string) error
+        +ReactToComment(commentID uint, userID uint, reactionType string) error
+    }
+
+    class PostsRepository {
+        <<Repository>>
+        -db gorm.DB
+        +CreatePost(post Post) error
+        +GetPostByID(id uint) Post
+        +GetFeed(limit int, offset int) []Post
+        +GetUserPosts(userID uint, limit int, offset int) []Post
+        +DeletePost(id uint) error
+        +IncrementCommentCount(postID uint) error
+        +DecrementCommentCount(postID uint) error
+        +CreateComment(comment PostComment) error
+        +GetCommentsByPostID(postID uint) []PostComment
+        +DeleteComment(id uint) error
+        +GetCommentByID(id uint) PostComment
+        +GetPostReaction(postID uint, userID uint) PostReaction
+        +CreatePostReaction(reaction PostReaction) error
+        +UpdatePostReaction(postID uint, userID uint, type string) error
+        +DeletePostReaction(postID uint, userID uint) error
+        +GetPostReactionCounts(postID uint) (int64, int64)
+        +UpdatePostLikeCount(postID uint, count int) error
+        +GetCommentReaction(commentID uint, userID uint) CommentReaction
+        +CreateCommentReaction(reaction CommentReaction) error
+        +UpdateCommentReaction(commentID uint, userID uint, type string) error
+        +DeleteCommentReaction(commentID uint, userID uint) error
+        +GetCommentReactionCounts(commentID uint) (int64, int64)
+    }
+
+    class CreatePostRequest {
+        <<DTO Request>>
+        +string Content
+        +[]string MediaURLs
+        +uint* PlaceID
+        +string PlaceName
+    }
+
+    class PostResponse {
+        <<DTO Response>>
+        +Post Post
+        +bool UserLiked
+        +bool UserDisliked
+    }
+
+    class CommentResponse {
+        <<DTO Response>>
+        +PostComment PostComment
+        +bool UserLiked
+        +bool UserDisliked
+        +int LikeCount
+        +int DislikeCount
+    }
+
+    %% ══════════════════════════════════════════
+    %% REVIEWS SERVICE (6 classes)
+    %% ══════════════════════════════════════════
+    
+    class Review {
+        <<Entity>>
+        +uint ID
+        +uint PlaceID
+        +uint UserID
+        +string Username
+        +string UserAvatar
+        +string UserRole
+        +string Content
+        +float64 Rating
+        +string MediaURLs
+        +int LikeCount
+        +time.Time CreatedAt
+        +time.Time UpdatedAt
+    }
+
+    class ReviewReaction {
+        <<Entity>>
+        +uint ID
+        +uint ReviewID
+        +uint UserID
+        +string Type
+        +time.Time CreatedAt
+    }
+
+    class ReviewComment {
+        <<Entity>>
+        +uint ID
+        +uint ReviewID
+        +uint UserID
+        +string Content
+        +uint* ParentID
+        +time.Time CreatedAt
+        +time.Time UpdatedAt
+    }
+
+    class ReviewsService {
+        <<Service>>
+        -repo ReviewsRepository
+        +CreateReview(userID uint, username string, userRole string, req CreateReviewRequest) Review
+        +GetPlaceReviews(placeID uint) []Review
+        +GetUserReviews(userID uint) []Review
+        -updatePlaceRating(placeID uint)
+    }
+
+    class ReviewsRepository {
+        <<Repository>>
+        -db gorm.DB
+        +Create(review Review) error
+        +GetByPlaceID(placeID uint) []Review
+        +GetByUserID(userID uint) []Review
+    }
+
+    class CreateReviewRequest {
+        <<DTO Request>>
+        +uint PlaceID
+        +string Content
+        +float64 Rating
+        +[]string MediaURLs
+    }
+
+    %% ══════════════════════════════════════════
+    %% DEPENDENCIES (- - ->)
+    %% Service -> Repository
+    %% ══════════════════════════════════════════
+    
+    AuthService ..> AuthRepository : uses
+    AuthService ..> RegisterRequest : uses
+    AuthService ..> LoginRequest : uses
+    AuthService ..> AuthResponse : returns
+    AuthService ..> User : manages
+    AuthService ..> Role : uses
+    
+    ChatService ..> ChatRepository : uses
+    ChatService ..> Chat : manages
+    ChatService ..> ChatMember : manages
+    ChatService ..> ChatMessage : manages
+    ChatService ..> MessageAttachment : manages
+    
+    MediaPresenter ..> MediaRepository : uses
+    MediaPresenter ..> MediaFile : manages
+    
+    PlacesService ..> PlacesRepository : uses
+    PlacesService ..> CreatePlaceRequest : uses
+    PlacesService ..> PlaceResponse : returns
+    PlacesService ..> GroupResponse : returns
+    PlacesService ..> Place : manages
+    PlacesService ..> Group : manages
+    PlacesService ..> GroupMember : manages
+    PlacesService ..> PlaceLike : manages
+    PlacesService ..> Privacy : uses
+    PlacesService ..> ApprovalStatus : uses
+    
+    PostsService ..> PostsRepository : uses
+    PostsService ..> CreatePostRequest : uses
+    PostsService ..> PostResponse : returns
+    PostsService ..> CommentResponse : returns
+    PostsService ..> Post : manages
+    PostsService ..> PostComment : manages
+    PostsService ..> PostReaction : manages
+    PostsService ..> CommentReaction : manages
+    PostsService ..> PostAttachment : manages
+    PostsService ..> PostView : manages
+    
+    ReviewsService ..> ReviewsRepository : uses
+    ReviewsService ..> CreateReviewRequest : uses
+    ReviewsService ..> Review : manages
+    ReviewsService ..> ReviewReaction : manages
+    ReviewsService ..> ReviewComment : manages
+
+    %% ══════════════════════════════════════════
+    %% DEPENDENCIES (- - ->)
+    %% Repository -> Entity
+    %% ══════════════════════════════════════════
+    
+    AuthRepository ..> User : persists
+    ChatRepository ..> Chat : persists
+    ChatRepository ..> ChatMember : persists
+    ChatRepository ..> ChatMessage : persists
+    ChatRepository ..> MessageAttachment : persists
+    MediaRepository ..> MediaFile : creates
+    PlacesRepository ..> Place : persists
+    PlacesRepository ..> Group : persists
+    PlacesRepository ..> GroupMember : persists
+    PlacesRepository ..> PlaceLike : persists
+    PostsRepository ..> Post : persists
+    PostsRepository ..> PostComment : persists
+    PostsRepository ..> PostReaction : persists
+    PostsRepository ..> CommentReaction : persists
+    PostsRepository ..> PostAttachment : persists
+    PostsRepository ..> PostView : persists
+    ReviewsRepository ..> Review : persists
+
+    %% ══════════════════════════════════════════
+    %% DEPENDENCIES (- - ->)
+    %% Entity -> Enumeration
+    %% ══════════════════════════════════════════
+    
+    User ..> Role : uses
+    Place ..> Privacy : uses
+    Place ..> ApprovalStatus : uses
+
+    %% ══════════════════════════════════════════
+    %% AGGREGATIONS (o--)
+    %% DTO Response contains Entity by reference
+    %% ══════════════════════════════════════════
+    
+    AuthResponse o-- User : contains
+    PlaceResponse o-- Place : contains
+    PostResponse o-- Post : contains
+    CommentResponse o-- PostComment : contains
+    GroupResponse o-- Group : contains
+    ReviewComment "0..1" o-- "0..*" ReviewComment : parent
+
+    %% ══════════════════════════════════════════
+    %% COMPOSITIONS (*--)
+    %% Filled diamond on owner side
+    %% Part cannot exist without whole
+    %% ══════════════════════════════════════════
+    
+    Chat "1" *-- "0..*" ChatMember : contains
+    Chat "1" *-- "0..*" ChatMessage : contains
+    ChatMessage "1" *-- "0..*" MessageAttachment : contains
+    Group "1" *-- "0..*" GroupMember : contains
+    Place "1" *-- "0..*" PlaceLike : contains
+    Post "1" *-- "0..*" PostComment : contains
+    Post "1" *-- "0..*" PostReaction : contains
+    Post "1" *-- "0..*" PostAttachment : contains
+    Post "1" *-- "0..*" PostView : contains
+    PostComment "1" *-- "0..*" CommentReaction : contains
+    Review "1" *-- "0..*" ReviewReaction : contains
+    Review "1" *-- "0..*" ReviewComment : contains
+
+    %% ══════════════════════════════════════════
+    %% ASSOCIATIONS (--)
+    %% Simple line without arrow
+    %% Classes are linked but independent
+    %% ══════════════════════════════════════════
+    
+    User "1" -- "0..*" Chat : owns
+    User "1" -- "0..*" ChatMember : participates
+    User "1" -- "0..*" ChatMessage : sends
+    User "1" -- "0..*" MediaFile : uploads
+    User "1" -- "0..*" Place : creates
+    User "1" -- "0..*" PlaceLike : likes
+    User "1" -- "0..*" Group : owns
+    User "1" -- "0..*" GroupMember : joins
+    User "1" -- "0..*" Post : authors
+    User "1" -- "0..*" PostComment : writes
+    User "1" -- "0..*" PostReaction : reacts
+    User "1" -- "0..*" CommentReaction : reacts
+    User "1" -- "0..*" PostView : views
+    User "1" -- "0..*" Review : writes
+    User "1" -- "0..*" ReviewReaction : reacts
+    User "1" -- "0..*" ReviewComment : writes
+    Group "0..1" -- "0..*" Place : contains
+    Place "1" -- "0..*" Review : has
+    Place "0..1" -- "0..*" Post : tagged_in
+
