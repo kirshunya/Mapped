@@ -110,7 +110,7 @@ const MainMap = () => {
 
   const filteredPlaces = places
     .filter((p) => p.approval === 'approved' || p.user_id === user?.id)
-    .filter((p) => !search || p.name?.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase()))
+    .filter((p) => !search || (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.description || '').toLowerCase().includes(search.toLowerCase()))
     .filter((p) => catFilter.length === 0 || catFilter.includes(p.category))
     .filter((p) => privFilter.length === 0 || privFilter.includes(p.privacy))
     .filter((p) => (p.rating || 0) >= ratingFilter[0]);
@@ -206,30 +206,9 @@ const MainMap = () => {
 
           {/* Nav Actions */}
           <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* Quick Nav */}
-            <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 0.5 }}>
-              <Tooltip title="Feed">
-                <IconButton onClick={() => navigate('/feed')} sx={{ color: '#71717a' }}>
-                  <DynamicFeed sx={{ fontSize: 20 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Chats">
-                <IconButton onClick={() => navigate('/chats')} sx={{ color: '#71717a' }}>
-                  <ChatBubbleOutline sx={{ fontSize: 20 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Groups">
-                <IconButton onClick={() => navigate('/groups')} sx={{ color: '#71717a' }}>
-                  <GroupsIcon sx={{ fontSize: 20 }} />
-                </IconButton>
-              </Tooltip>
-            </Box>
-
-            <Divider orientation="vertical" flexItem sx={{ mx: 1, display: { xs: 'none', md: 'block' } }} />
-
             {/* Filters */}
             <Tooltip title="Filters">
-              <IconButton onClick={() => setFilterDrawer(true)} sx={{ color: '#71717a' }}>
+              <IconButton onClick={() => setFilterDrawer(true)} sx={{ color: '#71717a', '&:hover': { color: '#a78bfa' } }}>
                 <Badge 
                   badgeContent={activeFilters || null} 
                   color="primary"
@@ -249,6 +228,12 @@ const MainMap = () => {
                     width: 34, height: 34, fontSize: '0.85rem', 
                     background: 'linear-gradient(135deg,#7c3aed,#ec4899)',
                     border: '2px solid rgba(255,255,255,0.1)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: 'rgba(255,255,255,0.3)',
+                      boxShadow: '0 0 12px rgba(124,58,237,0.3)',
+                    }
                   }}
                 >
                   {user?.username?.[0]?.toUpperCase()}
