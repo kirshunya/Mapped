@@ -20,7 +20,6 @@ import MainLayout from '../components/layout/MainLayout';
 import useAuthStore from '../store/authStore';
 import { useNotify } from '../components/ui/NotificationProvider';
 import { useNavigate } from 'react-router-dom';
-import { useThemeContext } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 const MotionBox = motion(Box);
@@ -30,7 +29,6 @@ const SettingsPage = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const notify = useNotify();
-  const { mode, toggleTheme } = useThemeContext();
   const { language, changeLanguage, t } = useLanguage();
 
   const [showStatus, setShowStatus] = useState(localStorage.getItem('showOnlineStatus') !== 'false');
@@ -47,11 +45,6 @@ const SettingsPage = () => {
   const handleLanguageChange = (e) => {
     changeLanguage(e.target.value);
     notify.success(t('languageChanged'));
-  };
-
-  const handleThemeChange = (e) => {
-    toggleTheme(e.target.value);
-    notify.success(t('themeChanged'));
   };
 
   const handleStatusChange = (e) => {
@@ -128,29 +121,8 @@ const SettingsPage = () => {
             }}
           >
             <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#fafafa', mb: 2 }}>
-              {t('appearance')}
+              {t('language')}
             </Typography>
-
-            <FormControl fullWidth sx={{ mb: 2.5 }}>
-              <InputLabel sx={{ color: '#71717a' }}>{t('theme')}</InputLabel>
-              <Select
-                value={mode}
-                label={t('theme')}
-                onChange={handleThemeChange}
-                sx={{
-                  color: '#fafafa',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255,255,255,0.2)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255,255,255,0.3)',
-                  },
-                }}
-              >
-                <MenuItem value="dark">{t('dark')}</MenuItem>
-                <MenuItem value="light">{t('light')}</MenuItem>
-              </Select>
-            </FormControl>
 
             <FormControl fullWidth>
               <InputLabel sx={{ color: '#71717a' }}>{t('language')}</InputLabel>

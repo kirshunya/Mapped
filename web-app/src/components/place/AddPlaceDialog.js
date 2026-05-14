@@ -43,12 +43,22 @@ export const AddPlaceDialog = ({ open, onClose, position, onSubmit, loading }) =
       const uploaded = [];
       for (const file of files) {
         const { data } = await mediaAPI.upload(file);
-        uploaded.push(data.url);
+        // Handle different response formats
+        const url = data.url || data.file_url || data.path || data.media_url || (typeof data === 'string' ? data : null);
+        if (url) {
+          uploaded.push(url);
+        } else {
+          console.warn('Unexpected upload response format:', data);
+        }
       }
-      setPhotos((prev) => [...prev, ...uploaded]);
+      if (uploaded.length > 0) {
+        setPhotos((prev) => [...prev, ...uploaded]);
+      } else {
+        notify.error('Photo upload failed - invalid response format');
+      }
     } catch (err) {
       console.error('Upload failed:', err);
-      notify.error('Photo upload failed');
+      notify.error(err.response?.data?.error || 'Photo upload failed');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

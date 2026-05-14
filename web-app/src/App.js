@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { CssBaseline } from '@mui/material';
-import { AppThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import theme from './theme';
 import { LanguageProvider } from './context/LanguageContext';
 import useAuthStore from './store/authStore';
 import Login from './pages/Login';
@@ -31,9 +31,9 @@ const ModeratorOnly = ({ children }) => {
 };
 
 const App = () => (
-  <LanguageProvider>
-    <AppThemeProvider>
-      <CssBaseline />
+  <ThemeProvider theme={theme}>
+    <CssBaseline />
+    <LanguageProvider>
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -51,8 +51,8 @@ const App = () => (
           <Route path="/*" element={<Protected><MainMap /></Protected>} />
         </Routes>
       </Router>
-    </AppThemeProvider>
-  </LanguageProvider>
+    </LanguageProvider>
+  </ThemeProvider>
 );
 
 export default App;

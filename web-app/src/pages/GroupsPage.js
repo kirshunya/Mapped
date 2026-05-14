@@ -1,356 +1,132 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
+  Paper,
   Typography,
+  List,
+  ListItem,
+  ListItemButton,
+  TextField,
   IconButton,
   Button,
-  TextField,
-  Chip,
-  CircularProgress,
-  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Chip,
+  InputAdornment,
   Avatar,
+  Menu,
+  MenuItem,
+  CircularProgress,
+  Divider,
+  Stack,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
-import { Add, Group as GroupIcon, PersonAdd, ExitToApp, People, Close } from '@mui/icons-material';
-import useAuthStore from '../store/authStore';
-import { authAPI, groupsAPI } from '../services/api';
+import {
+  Add,
+  Search,
+  Close,
+  Group as GroupIcon,
+  Person,
+  MoreVert,
+  Edit,
+  Delete,
+  PersonAdd,
+  ExitToApp,
+  People,
+  ArrowBack,
+} from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
 import MainLayout from '../components/layout/MainLayout';
+import { groupsAPI, authAPI } from '../services/api';
+import useAuthStore from '../store/authStore';
 import { useNotify } from '../components/ui/NotificationProvider';
 
-const GroupCard = ({ group, isMember, isOwner, onJoin, onLeave, onSelect, loading }) => (
-  <Box
-    sx={{
-      p: 2.2,
-      borderRadius: 3,
-      background: isMember ? 'rgba(16,185,129,0.09)' : 'rgba(255,255,255,0.03)',
-      border: `1px solid ${isMember ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.08)'}`,
-      transition: 'all 0.2s cubic-bezier(0.16,1,0.3,1)',
-      '&:hover': {
-        borderColor: isMember ? 'rgba(16,185,129,0.55)' : 'rgba(245,158,11,0.35)',
-        transform: 'translateY(-2px)',
-      },
-    }}
-  >
-    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-      <Box
-        sx={{
-          width: 42,
-          height: 42,
-          borderRadius: 2,
-          flexShrink: 0,
-          background: 'linear-gradient(135deg, rgba(16,185,129,0.28), rgba(245,158,11,0.24))',
-          border: '1px solid rgba(16,185,129,0.28)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <GroupIcon sx={{ fontSize: 19, color: '#34d399' }} />
-      </Box>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-          <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: '#f8fafc' }}>{group.name}</Typography>
-          {isOwner && (
-            <Chip
-              label="Owner"
-              size="small"
-              sx={{
-                height: 18,
-                fontSize: '0.62rem',
-                fontWeight: 700,
-                background: 'rgba(245,158,11,0.15)',
-                color: '#f59e0b',
-                border: '1px solid rgba(245,158,11,0.35)',
-              }}
-            />
-          )}
-          {isMember && !isOwner && (
-            <Chip
-              label="Member"
-              size="small"
-              sx={{
-                height: 18,
-                fontSize: '0.62rem',
-                fontWeight: 700,
-                background: 'rgba(16,185,129,0.15)',
-                color: '#34d399',
-                border: '1px solid rgba(16,185,129,0.35)',
-              }}
-            />
-          )}
-        </Box>
-
-        {group.description && (
-          <Typography sx={{ fontSize: '0.83rem', color: '#94a3b8', lineHeight: 1.5, mb: 1.35 }}>{group.description}</Typography>
-        )}
-
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<People sx={{ fontSize: 13 }} />}
-            onClick={() => onSelect(group)}
-            sx={{
-              fontSize: '0.75rem',
-              borderColor: 'rgba(255,255,255,0.2)',
-              color: '#cbd5e1',
-              '&:hover': { borderColor: '#10b981', color: '#34d399' },
-            }}
-          >
-            Members
-          </Button>
-
-          {!isMember ? (
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={loading ? <CircularProgress size={12} sx={{ color: 'white' }} /> : <PersonAdd sx={{ fontSize: 13 }} />}
-              onClick={() => onJoin(group.id)}
-              disabled={loading}
-              sx={{ fontSize: '0.75rem' }}
-            >
-              Join
-            </Button>
-          ) : !isOwner ? (
-            <Button
-              size="small"
-              variant="outlined"
-              color="error"
-              startIcon={loading ? <CircularProgress size={12} sx={{ color: 'error.light' }} /> : <ExitToApp sx={{ fontSize: 13 }} />}
-              onClick={() => onLeave(group.id)}
-              disabled={loading}
-              sx={{ fontSize: '0.75rem', borderColor: 'rgba(239,68,68,0.35)' }}
-            >
-              Leave
-            </Button>
-          ) : null}
-        </Box>
-      </Box>
-    </Box>
-  </Box>
-);
-
-const MembersDialog = ({ group, open, onClose }) => {
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [newUserId, setNewUserId] = useState('');
-  const [newUserQuery, setNewUserQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [adding, setAdding] = useState(false);
-  const { user } = useAuthStore();
-
-  useEffect(() => {
-    if (open && group) {
-      setLoading(true);
-      groupsAPI
-        .getMembers(group.id)
-        .then(({ data }) => setMembers(Array.isArray(data) ? data : []))
-        .catch(() => setMembers([]))
-        .finally(() => setLoading(false));
-    }
-  }, [open, group]);
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <GroupIcon sx={{ fontSize: 17, color: '#34d399' }} />
-          {group?.name}
-        </Box>
-        <IconButton size="small" onClick={onClose}><Close fontSize="small" /></IconButton>
-      </DialogTitle>
-
-      <DialogContent>
-        {group?.owner_id === user?.id && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Find user by username/email"
-              value={newUserQuery}
-              onChange={async (e) => {
-                const q = e.target.value;
-                setNewUserQuery(q);
-                if (!q.trim()) {
-                  setSuggestions([]);
-                  return;
-                }
-                try {
-                  const { data } = await authAPI.searchUsers(q.trim());
-                  setSuggestions(data?.users || []);
-                } catch {
-                  setSuggestions([]);
-                }
-              }}
-            />
-
-            {suggestions.length > 0 && (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {suggestions.map((u) => (
-                  <Chip key={u.id} label={`${u.username} (#${u.id})`} onClick={() => setNewUserId(String(u.id))} sx={{ cursor: 'pointer' }} />
-                ))}
-              </Box>
-            )}
-
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField fullWidth size="small" label="User ID" value={newUserId} onChange={(e) => setNewUserId(e.target.value)} />
-              <Button
-                variant="contained"
-                disabled={!newUserId || adding}
-                onClick={async () => {
-                  setAdding(true);
-                  try {
-                    await groupsAPI.addMember(group.id, { user_id: Number(newUserId), role: 'member' });
-                    const { data } = await groupsAPI.getMembers(group.id);
-                    setMembers(Array.isArray(data) ? data : []);
-                    setNewUserId('');
-                    setNewUserQuery('');
-                    setSuggestions([]);
-                  } finally {
-                    setAdding(false);
-                  }
-                }}
-              >
-                Add
-              </Button>
-            </Box>
-          </Box>
-        )}
-
-        {loading ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={22} /></Box>
-        ) : members.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <People sx={{ fontSize: 34, color: '#1f2937', mb: 1 }} />
-            <Typography sx={{ fontSize: '0.88rem', color: '#64748b' }}>No members yet</Typography>
-          </Box>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {members.map((m) => (
-              <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.1, borderRadius: 2, background: 'rgba(255,255,255,0.03)' }}>
-                <Avatar src={m.user_avatar} sx={{ width: 30, height: 30, fontSize: '0.8rem', background: 'linear-gradient(135deg,#10b981,#f59e0b)', color: '#082018' }}>
-                  {(m.username || String(m.user_id))[0]?.toUpperCase()}
-                </Avatar>
-                <Typography sx={{ color: '#e2e8f0', fontWeight: 600, fontSize: '0.88rem', flex: 1 }}>{m.username || `User #${m.user_id}`}</Typography>
-                <Chip
-                  label={m.role}
-                  size="small"
-                  sx={{
-                    height: 18,
-                    fontSize: '0.58rem',
-                    fontWeight: 700,
-                    textTransform: 'capitalize',
-                    background: m.role === 'admin' ? 'rgba(245,158,11,0.16)' : 'rgba(16,185,129,0.16)',
-                    color: m.role === 'admin' ? '#f59e0b' : '#34d399',
-                  }}
-                />
-              </Box>
-            ))}
-          </Box>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-const CreateGroupDialog = ({ open, onClose, onCreate }) => {
-  const [form, setForm] = useState({ name: '', description: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleCreate = async () => {
-    if (!form.name.trim()) {
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await groupsAPI.create(form);
-      onCreate(data);
-      setForm({ name: '', description: '' });
-      onClose();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Failed to create group');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <GroupIcon sx={{ color: '#34d399', fontSize: 17 }} /> New group
-        </Box>
-        <IconButton size="small" onClick={onClose}><Close fontSize="small" /></IconButton>
-      </DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 0.5 }}>
-        {error && <Alert severity="error">{error}</Alert>}
-        <TextField fullWidth label="Group name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-        <TextField
-          fullWidth
-          multiline
-          rows={2}
-          label="Description"
-          placeholder="What's this group about?"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} color="inherit">Cancel</Button>
-        <Button
-          variant="contained"
-          onClick={handleCreate}
-          disabled={!form.name.trim() || loading}
-          startIcon={loading ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <Add sx={{ fontSize: 15 }} />}
-        >
-          Create
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
+const MotionBox = motion(Box);
+const MotionPaper = motion(Paper);
 
 const GroupsPage = () => {
-  const notify = useNotify();
   const { user } = useAuthStore();
+  const notify = useNotify();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(null);
-  const [error, setError] = useState('');
-  const [createOpen, setCreateOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groupSearch, setGroupSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [groupMenuAnchor, setGroupMenuAnchor] = useState(null);
+  const [newUserQuery, setNewUserQuery] = useState('');
+  const [userSuggestions, setUserSuggestions] = useState([]);
+  const [newUserId, setNewUserId] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
+
+  const [createForm, setCreateForm] = useState({ name: '', description: '' });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState('');
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await groupsAPI.getAll();
-      setGroups(Array.isArray(data) ? data : []);
-    } catch {
-      setError('Failed to load groups');
+      const list = Array.isArray(data) ? data : [];
+      setGroups(list);
+      // Only set selectedGroup if it's not already set and list has items
+      setSelectedGroup((prev) => prev || (list.length > 0 ? list[0] : null));
+    } catch (err) {
+      console.error(err);
       notify.error('Failed to load groups');
     } finally {
       setLoading(false);
     }
   }, [notify]);
 
+  const loadMembers = useCallback(async (groupId) => {
+    if (!groupId) return;
+    setMembersLoading(true);
+    try {
+      const { data } = await groupsAPI.getMembers(groupId);
+      setMembers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setMembers([]);
+    } finally {
+      setMembersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadGroups();
   }, [loadGroups]);
+
+  useEffect(() => {
+    if (selectedGroup?.id) {
+      loadMembers(selectedGroup.id);
+    }
+  }, [selectedGroup, loadMembers]);
+
+  const filteredGroups = groups.filter((g) =>
+    g.name.toLowerCase().includes(groupSearch.toLowerCase())
+  );
+
+  const isMember = (g) => g.is_member || g.owner_id === user?.id;
+  const isOwner = (g) => g.owner_id === user?.id;
 
   const handleJoin = async (groupId) => {
     setActionLoading(groupId);
     try {
       await groupsAPI.join(groupId);
       await loadGroups();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Failed to join');
-      notify.error('Failed to join group');
+      notify.success('Joined group');
+    } catch (err) {
+      notify.error(err.response?.data?.error || 'Failed to join');
     } finally {
       setActionLoading(null);
     }
@@ -360,68 +136,872 @@ const GroupsPage = () => {
     setActionLoading(groupId);
     try {
       await groupsAPI.leave(groupId);
+      setSelectedGroup(null);
       await loadGroups();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Failed to leave');
-      notify.error('Failed to leave group');
+      notify.success('Left group');
+    } catch (err) {
+      notify.error(err.response?.data?.error || 'Failed to leave');
     } finally {
       setActionLoading(null);
     }
   };
 
-  const isMember = (g) => g.is_member || g.owner_id === user?.id;
+  const handleCreateGroup = async () => {
+    if (!createForm.name.trim()) {
+      setCreateError('Group name is required');
+      return;
+    }
+    setCreateLoading(true);
+    setCreateError('');
+    try {
+      const { data } = await groupsAPI.create(createForm);
+      setGroups((p) => [data, ...p]);
+      setSelectedGroup(data);
+      setCreateForm({ name: '', description: '' });
+      setCreateOpen(false);
+      notify.success('Group created');
+    } catch (err) {
+      setCreateError(err.response?.data?.error || 'Failed to create group');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!selectedGroup || !newUserId) return;
+    setAddingMember(true);
+    try {
+      await groupsAPI.addMember(selectedGroup.id, {
+        user_id: Number(newUserId),
+        role: 'member',
+      });
+      await loadMembers(selectedGroup.id);
+      setNewUserId('');
+      setNewUserQuery('');
+      setUserSuggestions([]);
+      notify.success('Member added');
+    } catch (err) {
+      notify.error(err.response?.data?.error || 'Failed to add member');
+    } finally {
+      setAddingMember(false);
+    }
+  };
 
   return (
     <MainLayout>
-      <Box sx={{ minHeight: 'calc(100vh - 64px)', px: { xs: 2, md: 3 }, py: 3.2 }}>
-        <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.2, gap: 2 }}>
-            <Box>
-              <Typography sx={{ fontWeight: 900, fontSize: { xs: '1.45rem', md: '1.85rem' }, color: '#f8fafc', letterSpacing: '-0.02em' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          height: 'calc(100vh - 64px)',
+          background: '#030712',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Groups List Sidebar */}
+        <Paper
+          elevation={0}
+          sx={{
+            width: { xs: isMobile && selectedGroup ? 0 : '100%', md: 340 },
+            borderRadius: 0,
+            background: 'rgba(15,23,42,0.4)',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            transition: 'width 0.3s ease',
+          }}
+        >
+          {/* Header */}
+          <Box sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+              <Typography
+                sx={{
+                  fontSize: '1.3rem',
+                  fontWeight: 800,
+                  color: '#f8fafc',
+                  flex: 1,
+                }}
+              >
                 Groups
               </Typography>
-              <Typography sx={{ fontSize: '0.9rem', color: '#94a3b8' }}>Join groups and build local communities</Typography>
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<Add sx={{ fontSize: 16 }} />}
+                onClick={() => setCreateOpen(true)}
+                sx={{
+                  background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #8b5cf6, #f472b6)',
+                  },
+                }}
+              >
+                New
+              </Button>
             </Box>
-            <Button variant="contained" startIcon={<Add sx={{ fontSize: 15 }} />} onClick={() => setCreateOpen(true)}>
-              New group
-            </Button>
+
+            {/* Search */}
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search groups..."
+              value={groupSearch}
+              onChange={(e) => setGroupSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search sx={{ fontSize: 18, color: '#64748b' }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: 2,
+                  '&:hover': { background: 'rgba(255,255,255,0.08)' },
+                  '&.Mui-focused': {
+                    background: 'rgba(124,58,237,0.1)',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#7c3aed',
+                    },
+                  },
+                },
+              }}
+            />
           </Box>
 
-          {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+          {/* Groups List */}
+          <List
+            sx={{
+              flex: 1,
+              overflow: 'auto',
+              p: 1,
+              '&::-webkit-scrollbar': { width: '6px' },
+              '&::-webkit-scrollbar-track': { background: 'transparent' },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'rgba(124,58,237,0.3)',
+                borderRadius: '3px',
+              },
+            }}
+          >
+            <AnimatePresence>
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : filteredGroups.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography sx={{ color: '#64748b', fontSize: '0.9rem' }}>
+                    No groups found
+                  </Typography>
+                </Box>
+              ) : (
+                filteredGroups.map((group, idx) => (
+                  <MotionBox
+                    key={group.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <ListItemButton
+                      onClick={() => setSelectedGroup(group)}
+                      selected={selectedGroup?.id === group.id}
+                      sx={{
+                        borderRadius: 2,
+                        mb: 0.5,
+                        color: '#f8fafc',
+                        background:
+                          selectedGroup?.id === group.id
+                            ? 'rgba(124,58,237,0.2)'
+                            : 'transparent',
+                        border:
+                          selectedGroup?.id === group.id
+                            ? '1px solid rgba(124,58,237,0.4)'
+                            : '1px solid transparent',
+                        '&:hover': {
+                          background: 'rgba(124,58,237,0.1)',
+                        },
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        p: 1.5,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 2,
+                          background: `linear-gradient(135deg, ${
+                            isMember(group)
+                              ? 'rgba(16,185,129,0.2)'
+                              : 'rgba(124,58,237,0.2)'
+                          }, ${
+                            isMember(group)
+                              ? 'rgba(16,185,129,0.1)'
+                              : 'rgba(236,72,153,0.15)'
+                          })`,
+                          border: `1px solid ${
+                            isMember(group)
+                              ? 'rgba(16,185,129,0.3)'
+                              : 'rgba(124,58,237,0.3)'
+                          }`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <GroupIcon
+                          sx={{
+                            fontSize: 22,
+                            color: isMember(group) ? '#34d399' : '#a78bfa',
+                          }}
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                            color: '#f8fafc',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {group.name}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '0.75rem',
+                            color: '#64748b',
+                            mt: 0.25,
+                          }}
+                        >
+                          {group.member_count || 0} members
+                        </Typography>
+                      </Box>
+                    </ListItemButton>
+                  </MotionBox>
+                ))
+              )}
+            </AnimatePresence>
+          </List>
+        </Paper>
 
-          {loading ? (
-            <Box sx={{ textAlign: 'center', py: 8 }}><CircularProgress size={24} /></Box>
-          ) : groups.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 8, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <GroupIcon sx={{ fontSize: 44, opacity: 0.2, color: '#34d399', mb: 1.5 }} />
-              <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#e2e8f0', mb: 1 }}>No groups yet</Typography>
-              <Typography sx={{ fontSize: '0.875rem', color: '#64748b', mb: 3 }}>Create first group and invite members</Typography>
-              <Button variant="contained" startIcon={<Add sx={{ fontSize: 15 }} />} onClick={() => setCreateOpen(true)}>Create group</Button>
+        {/* Group Details Panel */}
+        {selectedGroup ? (
+          <MotionBox
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            sx={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Group Header */}
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: 0,
+                background: 'rgba(15,23,42,0.4)',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                p: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {isMobile && (
+                  <IconButton
+                    size="small"
+                    onClick={() => setSelectedGroup(null)}
+                    sx={{ color: '#a78bfa' }}
+                  >
+                    <ArrowBack />
+                  </IconButton>
+                )}
+                <Box>
+                  <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#f8fafc' }}>
+                    {selectedGroup.name}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.25 }}>
+                    {members.length} members
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {isMember(selectedGroup) && (
+                  <Button
+                    size="small"
+                    startIcon={<People sx={{ fontSize: 16 }} />}
+                    onClick={() => setMembersOpen(true)}
+                    sx={{
+                      textTransform: 'none',
+                      color: '#a78bfa',
+                      borderColor: 'rgba(124,58,237,0.3)',
+                      border: '1px solid rgba(124,58,237,0.3)',
+                      borderRadius: 2,
+                      '&:hover': {
+                        borderColor: '#7c3aed',
+                        background: 'rgba(124,58,237,0.08)',
+                      },
+                    }}
+                  >
+                    Members
+                  </Button>
+                )}
+
+                {isMember(selectedGroup) ? (
+                  isOwner(selectedGroup) ? null : (
+                    <Button
+                      size="small"
+                      startIcon={<ExitToApp sx={{ fontSize: 16 }} />}
+                      onClick={() => handleLeave(selectedGroup.id)}
+                      disabled={actionLoading === selectedGroup.id}
+                      sx={{
+                        textTransform: 'none',
+                        color: '#ef4444',
+                        borderColor: 'rgba(239,68,68,0.3)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        borderRadius: 2,
+                        '&:hover': {
+                          borderColor: '#ef4444',
+                          background: 'rgba(239,68,68,0.08)',
+                        },
+                      }}
+                    >
+                      Leave
+                    </Button>
+                  )
+                ) : (
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<PersonAdd sx={{ fontSize: 16 }} />}
+                    onClick={() => handleJoin(selectedGroup.id)}
+                    disabled={actionLoading === selectedGroup.id}
+                    sx={{
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      borderRadius: 2,
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #34d399, #10b981)',
+                      },
+                    }}
+                  >
+                    Join
+                  </Button>
+                )}
+              </Box>
+            </Paper>
+
+            {/* Group Info */}
+            <Box
+              sx={{
+                flex: 1,
+                overflow: 'auto',
+                p: 3,
+                '&::-webkit-scrollbar': { width: '6px' },
+                '&::-webkit-scrollbar-track': { background: 'transparent' },
+                '&::-webkit-scrollbar-thumb': {
+                  background: 'rgba(124,58,237,0.3)',
+                  borderRadius: '3px',
+                },
+              }}
+            >
+              {/* Description */}
+              {selectedGroup.description && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', mb: 1, fontWeight: 600 }}>
+                    About
+                  </Typography>
+                  <Typography sx={{ color: '#cbd5e1', lineHeight: 1.6 }}>
+                    {selectedGroup.description}
+                  </Typography>
+                </Box>
+              )}
+
+              <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.06)' }} />
+
+              {/* Members Section */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography sx={{ fontSize: '0.875rem', color: '#94a3b8', fontWeight: 600 }}>
+                    Members ({members.length})
+                  </Typography>
+                  {isOwner(selectedGroup) && (
+                    <IconButton
+                      size="small"
+                      onClick={() => setMembersOpen(true)}
+                      sx={{ color: '#a78bfa' }}
+                    >
+                      <Edit sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  )}
+                </Box>
+
+                {membersLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : (
+                  <Stack spacing={1}>
+                    {members.slice(0, 5).map((m) => (
+                      <Box
+                        key={m.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          p: 1.5,
+                          background: 'rgba(255,255,255,0.03)',
+                          borderRadius: 2,
+                          border: '1px solid rgba(255,255,255,0.05)',
+                        }}
+                      >
+                        <Avatar
+                          src={m.user_avatar}
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+                            fontSize: '0.75rem',
+                          }}
+                        >
+                          {(m.username || String(m.user_id))[0]?.toUpperCase()}
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              color: '#f8fafc',
+                              fontWeight: 600,
+                              fontSize: '0.85rem',
+                            }}
+                          >
+                            {m.username}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={m.role}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            textTransform: 'capitalize',
+                            background:
+                              m.role === 'admin' ? 'rgba(245,158,11,0.16)' : 'rgba(16,185,129,0.16)',
+                            color:
+                              m.role === 'admin' ? '#f59e0b' : '#34d399',
+                            border:
+                              m.role === 'admin'
+                                ? '1px solid rgba(245,158,11,0.3)'
+                                : '1px solid rgba(16,185,129,0.3)',
+                          }}
+                        />
+                      </Box>
+                    ))}
+                    {members.length > 5 && (
+                      <Box sx={{ textAlign: 'center', py: 1 }}>
+                        <Button
+                          size="small"
+                          onClick={() => setMembersOpen(true)}
+                          sx={{
+                            textTransform: 'none',
+                            color: '#a78bfa',
+                          }}
+                        >
+                          View all {members.length} members
+                        </Button>
+                      </Box>
+                    )}
+                  </Stack>
+                )}
+              </Box>
             </Box>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.35 }}>
-              {groups.map((g) => (
-                <GroupCard
-                  key={g.id}
-                  group={g}
-                  isMember={isMember(g)}
-                  isOwner={g.owner_id === user?.id}
-                  onJoin={handleJoin}
-                  onLeave={handleLeave}
-                  onSelect={(grp) => {
-                    setSelectedGroup(grp);
-                    setMembersOpen(true);
-                  }}
-                  loading={actionLoading === g.id}
-                />
-              ))}
-            </Box>
-          )}
-        </Box>
+          </MotionBox>
+        ) : (
+          <Box
+            sx={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#030712',
+            }}
+          >
+            <MotionBox
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+              sx={{ textAlign: 'center' }}
+            >
+              <GroupIcon sx={{ fontSize: 64, color: '#27272a', mb: 2 }} />
+              <Typography sx={{ color: '#64748b', fontSize: '1rem', fontWeight: 600 }}>
+                Select a group to view details
+              </Typography>
+            </MotionBox>
+          </Box>
+        )}
       </Box>
 
-      <CreateGroupDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreate={(g) => setGroups((p) => [g, ...p])} />
-      <MembersDialog group={selectedGroup} open={membersOpen} onClose={() => setMembersOpen(false)} />
+      {/* Create Group Dialog */}
+      <Dialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: 'linear-gradient(180deg, rgba(15,15,20,0.98) 0%, rgba(9,9,11,0.99) 100%)',
+            border: '1px solid rgba(124,58,237,0.2)',
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            pb: 2,
+          }}
+        >
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(236,72,153,0.2))',
+              border: '1px solid rgba(124,58,237,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <GroupIcon sx={{ fontSize: 20, color: '#a78bfa' }} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: '1rem' }}>
+              New Group
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+              Create a new community
+            </Typography>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {createError && (
+            <Box
+              sx={{
+                p: 2,
+                background: 'rgba(239,68,68,0.1)',
+                border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: 2,
+                color: '#ef4444',
+                fontSize: '0.85rem',
+              }}
+            >
+              {createError}
+            </Box>
+          )}
+
+          <TextField
+            fullWidth
+            label="Group name"
+            value={createForm.name}
+            onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+            placeholder="What's your group about?"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: 2,
+              },
+            }}
+          />
+
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Description"
+            value={createForm.description}
+            onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+            placeholder="Tell us more about this group..."
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: 2,
+              },
+            }}
+          />
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <Button
+            onClick={() => setCreateOpen(false)}
+            sx={{ color: '#64748b' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateGroup}
+            disabled={!createForm.name.trim() || createLoading}
+            startIcon={createLoading && <CircularProgress size={16} sx={{ color: 'white' }} />}
+            sx={{
+              background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #8b5cf6, #f472b6)',
+              },
+            }}
+          >
+            Create Group
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Members Dialog */}
+      <Dialog
+        open={membersOpen}
+        onClose={() => setMembersOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: 'linear-gradient(180deg, rgba(15,15,20,0.98) 0%, rgba(9,9,11,0.99) 100%)',
+            border: '1px solid rgba(124,58,237,0.2)',
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            pb: 2,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(245,158,11,0.2))',
+                border: '1px solid rgba(16,185,129,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <People sx={{ fontSize: 20, color: '#34d399' }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: '1rem' }}>
+                {selectedGroup?.name}
+              </Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+                Manage members
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton
+            size="small"
+            onClick={() => setMembersOpen(false)}
+            sx={{ color: '#64748b' }}
+          >
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 3 }}>
+          {isOwner(selectedGroup) && (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1.5,
+                mb: 3,
+                pb: 3,
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <TextField
+                fullWidth
+                size="small"
+                label="Find user by username/email"
+                value={newUserQuery}
+                onChange={async (e) => {
+                  const q = e.target.value;
+                  setNewUserQuery(q);
+                  if (!q.trim()) {
+                    setUserSuggestions([]);
+                    return;
+                  }
+                  try {
+                    const { data } = await authAPI.searchUsers(q.trim());
+                    setUserSuggestions(data?.users || []);
+                  } catch {
+                    setUserSuggestions([]);
+                  }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search sx={{ fontSize: 18, color: '#52525b' }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: 2,
+                  },
+                }}
+              />
+
+              {userSuggestions.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  {userSuggestions.map((u) => (
+                    <Chip
+                      key={u.id}
+                      label={`${u.username} (#${u.id})`}
+                      onClick={() => setNewUserId(String(u.id))}
+                      sx={{
+                        cursor: 'pointer',
+                        background: 'rgba(124,58,237,0.15)',
+                        border: '1px solid rgba(124,58,237,0.3)',
+                        color: '#f8fafc',
+                        '&:hover': { background: 'rgba(124,58,237,0.25)' },
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
+
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="User ID"
+                  value={newUserId}
+                  onChange={(e) => setNewUserId(e.target.value)}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      background: 'rgba(255,255,255,0.03)',
+                      borderRadius: 2,
+                    },
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  disabled={!newUserId || addingMember}
+                  onClick={handleAddMember}
+                  startIcon={addingMember && <CircularProgress size={14} sx={{ color: 'white' }} />}
+                  sx={{
+                    background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #8b5cf6, #f472b6)',
+                    },
+                  }}
+                >
+                  Add
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          {membersLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : (
+            <Stack spacing={1}>
+              {members.map((m) => (
+                <Box
+                  key={m.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      background: 'rgba(124,58,237,0.08)',
+                      borderColor: 'rgba(124,58,237,0.2)',
+                    },
+                  }}
+                >
+                  <Avatar
+                    src={m.user_avatar}
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+                      fontSize: '0.8rem',
+                      color: 'white',
+                    }}
+                  >
+                    {(m.username || String(m.user_id))[0]?.toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      sx={{
+                        color: '#f8fafc',
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                      }}
+                    >
+                      {m.username}
+                    </Typography>
+                    <Typography sx={{ color: '#64748b', fontSize: '0.75rem' }}>
+                      #{m.user_id}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={m.role}
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      textTransform: 'capitalize',
+                      background:
+                        m.role === 'admin'
+                          ? 'rgba(245,158,11,0.16)'
+                          : 'rgba(16,185,129,0.16)',
+                      color: m.role === 'admin' ? '#f59e0b' : '#34d399',
+                      border:
+                        m.role === 'admin'
+                          ? '1px solid rgba(245,158,11,0.3)'
+                          : '1px solid rgba(16,185,129,0.3)',
+                    }}
+                  />
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };
