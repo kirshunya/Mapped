@@ -13,17 +13,34 @@ const api = axios.create({
   },
 });
 
+// Log all requests for debugging
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log('🌐 API Request:', {
+    method: config.method.toUpperCase(),
+    url: config.url,
+    fullURL: config.baseURL + config.url,
+  });
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ API Response:', {
+      status: response.status,
+      url: response.config.url,
+    });
+    return response;
+  },
   (error) => {
+    console.error('❌ API Error:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      message: error.message,
+    });
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
     }
@@ -34,15 +51,22 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   register: (data) => api.post('/auth/register', data),
+  signup: (username, email, password) => api.post('/auth/register', { username, email, password }),
   getProfile: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/me', data),
   searchUsers: (q) => api.get('/auth/users/search', { params: { q } }),
+  getUserProfile: (userId) => api.get(`/auth/users/${userId}`),
+  followUser: (userId) => api.post(`/auth/users/${userId}/follow`),
+  unfollowUser: (userId) => api.delete(`/auth/users/${userId}/follow`),
+  getFollowers: (userId) => api.get(`/auth/users/${userId}/followers`),
+  getFollowing: (userId) => api.get(`/auth/users/${userId}/following`),
 };
 
 export const placesAPI = {
   getAll: (params) => api.get('/places/all', { params }),
   getNearby: (params) => api.get('/places', { params }),
   getById: (id) => api.get(`/places/${id}`),
+  getByUser: (userId) => api.get(`/places/user/${userId}`),
   create: (data) => api.post('/places', data),
   update: (id, data) => api.put(`/places/${id}`, data),
   delete: (id) => api.delete(`/places/${id}`),
@@ -88,6 +112,7 @@ export const postsAPI = {
   create: (data) => api.post('/posts', data),
   delete: (id) => api.delete(`/posts/${id}`),
   getUserPosts: (userId) => api.get(`/users/${userId}/posts`),
+  getRecommended: (params) => api.get('/posts/recommended', { params }),
   getComments: (postId) => api.get(`/posts/${postId}/comments`),
   createComment: (postId, data) => api.post(`/posts/${postId}/comments`, data),
   deleteComment: (commentId) => api.delete(`/comments/${commentId}`),
