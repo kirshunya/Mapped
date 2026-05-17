@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   IconButton,
@@ -9,6 +9,9 @@ import {
   Badge,
   useMediaQuery,
   useTheme,
+  Divider,
+  Select,
+  FormControl,
   Tooltip,
 } from '@mui/material';
 import {
@@ -21,232 +24,75 @@ import {
   Recommend as RecommendIcon,
   Logout,
   AdminPanelSettings,
-  LocationOn,
   Settings,
-  KeyboardArrowDown,
+  Language,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../../store/authStore';
+import { useLanguage } from '../../context/LanguageContext';
 
 const MotionBox = motion(Box);
 
-// Animated indicator for active tab
-const ActiveIndicator = ({ layoutId }) => (
+const NavItem = ({ item, isActive, onClick }) => (
   <MotionBox
-    layoutId="activeTab"
-    initial={false}
-    transition={{
-      type: 'spring',
-      stiffness: 500,
-      damping: 35,
-    }}
+    onClick={onClick}
+    whileHover={{ x: 4 }}
+    whileTap={{ x: 2 }}
     sx={{
-      position: 'absolute',
-      inset: 0,
-      borderRadius: 2.5,
-      background: 'linear-gradient(135deg, rgba(124,58,237,0.15) 0%, rgba(236,72,153,0.15) 100%)',
-      border: '1px solid rgba(124,58,237,0.3)',
-      zIndex: 0,
-    }}
-  />
-);
-
-// Nav item component
-const NavItem = ({ item, isActive, onClick, isMobile }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <MotionBox
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      sx={{
-        position: 'relative',
-        cursor: 'pointer',
-        userSelect: 'none',
-        px: { xs: 1.5, md: 2.5 },
-        py: 1.25,
-        borderRadius: 2.5,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.25,
-        color: isActive ? '#f8fafc' : '#94a3b8',
-        transition: 'color 0.2s ease',
-        zIndex: 1,
-      }}
-    >
-      {isActive && <ActiveIndicator />}
-      
-      {/* Icon */}
-      <Box
-        sx={{
-          position: 'relative',
-          zIndex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {item.badge ? (
-          <Badge
-            badgeContent={item.badge}
-            sx={{
-              '& .MuiBadge-badge': {
-                background: 'linear-gradient(135deg, #ec4899, #f43f5e)',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: '0.65rem',
-                minWidth: 18,
-                height: 18,
-                boxShadow: '0 2px 8px rgba(236,72,153,0.4)',
-              },
-            }}
-          >
-            {React.cloneElement(item.icon, {
-              sx: {
-                fontSize: 22,
-                transition: 'transform 0.2s ease',
-                transform: isActive || isHovered ? 'scale(1.1)' : 'scale(1)',
-              },
-            })}
-          </Badge>
-        ) : (
-          React.cloneElement(item.icon, {
-            sx: {
-              fontSize: 22,
-              transition: 'transform 0.2s ease',
-              transform: isActive || isHovered ? 'scale(1.1)' : 'scale(1)',
-            },
-          })
-        )}
-      </Box>
-
-      {/* Label */}
-      {!isMobile && (
-        <Typography
-          sx={{
-            position: 'relative',
-            zIndex: 1,
-            fontWeight: isActive ? 700 : 600,
-            fontSize: '0.875rem',
-            whiteSpace: 'nowrap',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          {item.title}
-        </Typography>
-      )}
-
-      {/* Hover glow effect */}
-      <AnimatePresence>
-        {isHovered && !isActive && (
-          <MotionBox
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 2.5,
-              background: 'rgba(255,255,255,0.05)',
-              zIndex: 0,
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </MotionBox>
-  );
-};
-
-// Notification dropdown
-const NotificationDropdown = ({ anchorEl, open, onClose }) => (
-  <Menu
-    anchorEl={anchorEl}
-    open={open}
-    onClose={onClose}
-    transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-    anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-    PaperProps={{
-      sx: {
-        mt: 1.5,
-        minWidth: 320,
-        maxHeight: 400,
-        background: 'rgba(15,23,42,0.95)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 3,
-        overflow: 'hidden',
-      },
+      cursor: 'pointer',
+      px: 2,
+      py: 1.5,
+      borderRadius: 2,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 2,
+      color: isActive ? '#f8fafc' : '#94a3b8',
+      transition: 'all 0.2s ease',
+      background: isActive ? 'rgba(124,58,237,0.1)' : 'transparent',
+      border: isActive ? '1px solid rgba(124,58,237,0.3)' : '1px solid transparent',
+      userSelect: 'none',
+      position: 'relative',
     }}
   >
-    <Box sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-      <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.95rem' }}>
-        Notifications
-      </Typography>
-    </Box>
-    
-    {[
-      { title: 'New follower', desc: 'Alex started following you', time: '2m ago', unread: true },
-      { title: 'Post liked', desc: 'Sarah liked your photo', time: '15m ago', unread: true },
-      { title: 'New comment', desc: 'Mike commented on your post', time: '1h ago', unread: false },
-    ].map((notif, i) => (
-      <MenuItem
-        key={i}
-        onClick={onClose}
+    {item.badge ? (
+      <Badge
+        badgeContent={item.badge}
         sx={{
-          py: 1.5,
-          px: 2,
-          gap: 1.5,
-          background: notif.unread ? 'rgba(124,58,237,0.08)' : 'transparent',
-          '&:hover': { background: 'rgba(124,58,237,0.12)' },
+          '& .MuiBadge-badge': {
+            background: 'linear-gradient(135deg, #ec4899, #f43f5e)',
+            color: 'white',
+            fontWeight: 700,
+            fontSize: '0.65rem',
+          },
         }}
       >
-        <Box
-          sx={{
-            width: 40,
-            height: 40,
-            borderRadius: 2,
-            background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <NotificationsIcon sx={{ fontSize: 20, color: '#fff' }} />
-        </Box>
-        <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#f8fafc' }}>
-            {notif.title}
-          </Typography>
-          <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-            {notif.desc}
-          </Typography>
-        </Box>
-        <Typography sx={{ fontSize: '0.7rem', color: '#64748b' }}>
-          {notif.time}
-        </Typography>
-      </MenuItem>
-    ))}
-    
-    <Box sx={{ p: 1.5, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      <Typography
+        {React.cloneElement(item.icon, { sx: { fontSize: 20 } })}
+      </Badge>
+    ) : (
+      React.cloneElement(item.icon, { sx: { fontSize: 20 } })
+    )}
+    <Typography sx={{ fontWeight: isActive ? 600 : 500, fontSize: '0.9rem' }}>
+      {item.title}
+    </Typography>
+
+    {isActive && (
+      <MotionBox
+        layoutId="activeNav"
+        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
         sx={{
-          textAlign: 'center',
-          fontSize: '0.8rem',
-          color: '#a78bfa',
-          cursor: 'pointer',
-          fontWeight: 600,
-          '&:hover': { color: '#c4b5fd' },
+          position: 'absolute',
+          left: 0,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 3,
+          height: '70%',
+          background: 'linear-gradient(180deg, #7c3aed, #ec4899)',
+          borderRadius: '0 2px 2px 0',
         }}
-      >
-        View all notifications
-      </Typography>
-    </Box>
-  </Menu>
+      />
+    )}
+  </MotionBox>
 );
 
 const MainLayout = ({ children }) => {
@@ -255,408 +101,347 @@ const MainLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
-  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
-  const [notifAnchor, setNotifAnchor] = useState(null);
+  const { language, setLanguage, t } = useLanguage();
+  const [profileAnchor, setProfileAnchor] = useState(null);
+  const [langAnchor, setLangAnchor] = useState(null);
 
-  const navItems = useMemo(
-    () => [
-      { title: 'Map', icon: <MapIcon />, path: '/' },
-      { title: 'Feed', icon: <FeedIcon />, path: '/feed' },
-      { title: 'Groups', icon: <GroupsIcon />, path: '/groups' },
-      { title: 'Explore', icon: <RecommendIcon />, path: '/recommendations' },
-      { title: 'Messages', icon: <ChatIcon />, path: '/chats', badge: 3 },
-    ],
-    []
-  );
+  const navItems = [
+    { path: '/', title: t('feed'), icon: <FeedIcon /> },
+    { path: '/map', title: t('map'), icon: <MapIcon /> },
+    { path: '/places', title: t('places'), icon: <RecommendIcon /> },
+    { path: '/chats', title: t('chats'), icon: <ChatIcon /> },
+    { path: '/groups', title: t('groups'), icon: <GroupsIcon /> },
+  ];
+
+  if (user?.role === 'admin') {
+    navItems.push({ path: '/moderation', title: t('moderate'), icon: <AdminPanelSettings /> });
+  }
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+    setProfileAnchor(null);
   };
 
   return (
-    <Box sx={styles.root}>
-      {/* Ambient background */}
-      <Box sx={styles.ambientBg}>
-        <Box sx={styles.gradientOrb1} />
-        <Box sx={styles.gradientOrb2} />
-      </Box>
-
-      {/* Main navigation bar */}
-      <MotionBox
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        sx={styles.navbar}
+    <Box sx={{ display: 'flex', minHeight: '100vh', background: '#030712' }}>
+      {/* Sidebar - Desktop only */}
+      <Box
+        sx={{
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          width: 280,
+          background: 'rgba(15,23,42,0.4)',
+          borderRight: '1px solid rgba(255,255,255,0.06)',
+          p: 3,
+          gap: 3,
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          overflow: 'auto',
+          zIndex: 100,
+        }}
       >
-        <Box sx={styles.navbarInner}>
-          {/* Logo */}
-          <MotionBox
-            onClick={() => navigate('/')}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            sx={styles.logoContainer}
-          >
-            <Box sx={styles.logoIcon}>
-              <LocationOn sx={{ fontSize: 22, color: '#fff' }} />
-            </Box>
-            {!isMobile && (
-              <Typography sx={styles.logoText}>Mapped</Typography>
-            )}
-          </MotionBox>
+        {/* Logo */}
+        <MotionBox
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          sx={{
+            fontSize: '1.3rem',
+            fontWeight: 800,
+            background: 'linear-gradient(135deg, #a78bfa 0%, #f472b6 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-0.02em',
+            cursor: 'pointer',
+          }}
+          onClick={() => navigate('/')}
+        >
+          Mapped
+        </MotionBox>
 
-          {/* Navigation items */}
-          <Box sx={styles.navItems}>
-            {navItems.map((item) => (
+        {/* Navigation */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
+          {navItems.map((item, idx) => (
+            <MotionBox
+              key={item.path}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.05 }}
+            >
               <NavItem
-                key={item.path}
                 item={item}
                 isActive={location.pathname === item.path}
                 onClick={() => navigate(item.path)}
-                isMobile={isMobile}
               />
-            ))}
-          </Box>
-
-          {/* Right section */}
-          <Box sx={styles.rightSection}>
-            {/* Notifications */}
-            <MotionBox whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <IconButton
-                onClick={(e) => setNotifAnchor(e.currentTarget)}
-                sx={styles.iconButton}
-              >
-                <Badge
-                  badgeContent={4}
-                  sx={{
-                    '& .MuiBadge-badge': {
-                      background: 'linear-gradient(135deg, #ec4899, #f43f5e)',
-                      color: 'white',
-                      fontWeight: 700,
-                      fontSize: '0.65rem',
-                      minWidth: 18,
-                      height: 18,
-                    },
-                  }}
-                >
-                  <NotificationsIcon sx={{ fontSize: 22 }} />
-                </Badge>
-              </IconButton>
             </MotionBox>
-
-            {/* User menu */}
-            <MotionBox
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={(e) => setUserMenuAnchor(e.currentTarget)}
-              sx={styles.userButton}
-            >
-              <Avatar
-                src={user?.avatar}
-                sx={styles.avatar}
-              >
-                {user?.username?.[0]?.toUpperCase() || 'U'}
-              </Avatar>
-              {!isMobile && (
-                <>
-                  <Box sx={{ textAlign: 'left' }}>
-                    <Typography sx={styles.userName}>
-                      {user?.username || 'User'}
-                    </Typography>
-                    <Typography sx={styles.userRole}>
-                      {user?.role || 'Explorer'}
-                    </Typography>
-                  </Box>
-                  <KeyboardArrowDown
-                    sx={{
-                      fontSize: 18,
-                      color: '#64748b',
-                      transition: 'transform 0.2s',
-                      transform: userMenuAnchor ? 'rotate(180deg)' : 'rotate(0deg)',
-                    }}
-                  />
-                </>
-              )}
-            </MotionBox>
-          </Box>
+          ))}
         </Box>
-      </MotionBox>
 
-      {/* Notification dropdown */}
-      <NotificationDropdown
-        anchorEl={notifAnchor}
-        open={Boolean(notifAnchor)}
-        onClose={() => setNotifAnchor(null)}
-      />
+        {/* Divider */}
+        <Box sx={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
 
-      {/* User menu dropdown */}
-      <Menu
-        anchorEl={userMenuAnchor}
-        open={Boolean(userMenuAnchor)}
-        onClose={() => setUserMenuAnchor(null)}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        PaperProps={{
-          sx: {
-            mt: 1.5,
-            minWidth: 220,
-            background: 'rgba(15,23,42,0.95)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 3,
-            overflow: 'hidden',
-          },
-        }}
-      >
-        {/* User info header */}
-        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        {/* User section */}
+        <MotionBox
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          {/* Profile card */}
+          <Box
+            onClick={(e) => setProfileAnchor(e.currentTarget)}
+            sx={{
+              p: 2,
+              background: 'rgba(124,58,237,0.08)',
+              border: '1px solid rgba(124,58,237,0.2)',
+              borderRadius: 2,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                background: 'rgba(124,58,237,0.12)',
+                borderColor: 'rgba(124,58,237,0.4)',
+              },
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
             <Avatar
               src={user?.avatar}
               sx={{
-                width: 44,
-                height: 44,
+                width: 40,
+                height: 40,
                 background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
-                fontWeight: 700,
               }}
             >
-              {user?.username?.[0]?.toUpperCase() || 'U'}
+              {user?.username?.[0]?.toUpperCase()}
             </Avatar>
-            <Box>
-              <Typography sx={{ color: '#f8fafc', fontWeight: 700, fontSize: '0.95rem' }}>
-                {user?.username || 'User'}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>
+                {user?.username}
               </Typography>
-              <Typography sx={{ color: '#64748b', fontSize: '0.8rem' }}>
-                {user?.email || ''}
+              <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mt: 0.25 }}>
+                {user?.role}
               </Typography>
             </Box>
           </Box>
-        </Box>
 
-        <Box sx={{ py: 1 }}>
-          <MenuItem
-            onClick={() => { navigate('/profile'); setUserMenuAnchor(null); }}
-            sx={styles.menuItem}
-          >
-            <PersonIcon sx={{ fontSize: 20, color: '#94a3b8' }} />
-            <Typography>Profile</Typography>
-          </MenuItem>
+          {/* Settings & Logout */}
+           <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
+             <Box sx={{ display: 'flex', gap: 1 }}>
+               <Tooltip title={t('language')}>
+                 <IconButton
+                   onClick={(e) => setLangAnchor(e.currentTarget)}
+                   sx={{
+                     flex: 1,
+                     color: '#94a3b8',
+                     borderRadius: 2,
+                     border: '1px solid rgba(255,255,255,0.1)',
+                     '&:hover': {
+                       color: '#a78bfa',
+                       borderColor: 'rgba(124,58,237,0.3)',
+                       background: 'rgba(124,58,237,0.05)',
+                     },
+                   }}
+                 >
+                   <Language sx={{ fontSize: 18 }} />
+                 </IconButton>
+               </Tooltip>
+               <Tooltip title={t('settings')}>
+                 <IconButton
+                   onClick={() => navigate('/settings')}
+                   sx={{
+                     flex: 1,
+                     color: '#94a3b8',
+                     borderRadius: 2,
+                     border: '1px solid rgba(255,255,255,0.1)',
+                     '&:hover': {
+                       color: '#a78bfa',
+                       borderColor: 'rgba(124,58,237,0.3)',
+                       background: 'rgba(124,58,237,0.05)',
+                     },
+                   }}
+                 >
+                   <Settings sx={{ fontSize: 18 }} />
+                 </IconButton>
+               </Tooltip>
+             </Box>
+              <Tooltip title={t('logout')}>
+                <IconButton
+                  onClick={handleLogout}
+                  sx={{
+                    width: '100%',
+                    color: '#94a3b8',
+                    borderRadius: 2,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    '&:hover': {
+                      color: '#f87171',
+                      borderColor: 'rgba(239,68,68,0.3)',
+                      background: 'rgba(239,68,68,0.05)',
+                    },
+                  }}
+                >
+                  <Logout sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+        </MotionBox>
+      </Box>
 
-          <MenuItem sx={styles.menuItem}>
-            <Settings sx={{ fontSize: 20, color: '#94a3b8' }} />
-            <Typography>Settings</Typography>
-          </MenuItem>
-
-          {(user?.role === 'moderator' || user?.role === 'admin') && (
-            <MenuItem
-              onClick={() => { navigate('/moderation'); setUserMenuAnchor(null); }}
-              sx={styles.menuItem}
+      {/* Top navbar - Mobile only */}
+      <Box
+        sx={{
+          display: { xs: 'flex', md: 'none' },
+          height: 64,
+          background: 'rgba(15,23,42,0.5)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: 2,
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          width: '100%',
+        }}
+      >
+        <Typography sx={{ fontSize: '1.1rem', fontWeight: 800, background: 'linear-gradient(135deg, #a78bfa 0%, #f472b6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          Mapped
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Tooltip title={t('language')}>
+            <IconButton 
+              onClick={(e) => setLangAnchor(e.currentTarget)}
+              size="small"
+              sx={{ color: '#94a3b8' }}
             >
-              <AdminPanelSettings sx={{ fontSize: 20, color: '#94a3b8' }} />
-              <Typography>Moderation</Typography>
-            </MenuItem>
-          )}
+              <Language sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t('profile')}>
+            <IconButton 
+              onClick={(e) => setProfileAnchor(e.currentTarget)}
+              size="small"
+              sx={{ color: '#94a3b8' }}
+            >
+              <Avatar src={user?.avatar} sx={{ width: 28, height: 28, fontSize: '0.7rem' }}>
+                {user?.username?.[0]?.toUpperCase()}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
         </Box>
-
-        <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.06)', py: 1 }}>
-          <MenuItem
-            onClick={handleLogout}
-            sx={{
-              ...styles.menuItem,
-              color: '#f87171',
-              '&:hover': { background: 'rgba(248,113,113,0.1)' },
-            }}
-          >
-            <Logout sx={{ fontSize: 20 }} />
-            <Typography>Sign out</Typography>
-          </MenuItem>
-        </Box>
-      </Menu>
+      </Box>
 
       {/* Main content */}
-      <Box component="main" sx={styles.main}>
-        {children}
+      <Box sx={{ flex: 1, overflow: 'auto', paddingBottom: { xs: isMobile ? '70px' : 0, md: 0 } }}>
+        <MotionBox
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          {children}
+        </MotionBox>
       </Box>
+
+      {/* Profile menu */}
+      <Menu
+        anchorEl={profileAnchor}
+        open={Boolean(profileAnchor)}
+        onClose={() => setProfileAnchor(null)}
+        PaperProps={{
+          sx: {
+            background: 'rgba(15,23,42,0.8)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 2,
+            mt: 1,
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            navigate('/profile');
+            setProfileAnchor(null);
+          }}
+          sx={{
+            color: '#f8fafc',
+            '&:hover': { background: 'rgba(124,58,237,0.1)' },
+          }}
+        >
+          <PersonIcon sx={{ mr: 1, fontSize: 18 }} />
+          {t('profile')}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            navigate('/settings');
+            setProfileAnchor(null);
+          }}
+          sx={{
+            color: '#f8fafc',
+            '&:hover': { background: 'rgba(124,58,237,0.1)' },
+          }}
+        >
+          <Settings sx={{ mr: 1, fontSize: 18 }} />
+          {t('settings')}
+        </MenuItem>
+        <Divider sx={{ my: 1 }} />
+        <MenuItem
+          onClick={handleLogout}
+          sx={{
+            color: '#f87171',
+            '&:hover': { background: 'rgba(239,68,68,0.1)' },
+          }}
+        >
+          <Logout sx={{ mr: 1, fontSize: 18 }} />
+          {t('logout')}
+        </MenuItem>
+      </Menu>
+
+      {/* Language menu */}
+      <Menu
+        anchorEl={langAnchor}
+        open={Boolean(langAnchor)}
+        onClose={() => setLangAnchor(null)}
+        PaperProps={{
+          sx: {
+            background: 'rgba(15,23,42,0.8)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 2,
+            mt: 1,
+          },
+        }}
+      >
+        <MenuItem
+          selected={language === 'en'}
+          onClick={() => {
+            setLanguage('en');
+            setLangAnchor(null);
+          }}
+          sx={{
+            color: language === 'en' ? '#a78bfa' : '#f8fafc',
+            '&:hover': { background: 'rgba(124,58,237,0.1)' },
+          }}
+        >
+          🇬🇧 English
+        </MenuItem>
+        <MenuItem
+          selected={language === 'ru'}
+          onClick={() => {
+            setLanguage('ru');
+            setLangAnchor(null);
+          }}
+          sx={{
+            color: language === 'ru' ? '#a78bfa' : '#f8fafc',
+            '&:hover': { background: 'rgba(124,58,237,0.1)' },
+          }}
+        >
+          🇷🇺 Русский
+        </MenuItem>
+      </Menu>
     </Box>
   );
-};
-
-const styles = {
-  root: {
-    minHeight: '100vh',
-    background: '#030712',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  ambientBg: {
-    position: 'fixed',
-    inset: 0,
-    pointerEvents: 'none',
-    zIndex: 0,
-  },
-  gradientOrb1: {
-    position: 'absolute',
-    width: 600,
-    height: 600,
-    borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 60%)',
-    top: '-10%',
-    left: '-10%',
-    filter: 'blur(80px)',
-    animation: 'ambientFloat1 30s ease-in-out infinite',
-    '@keyframes ambientFloat1': {
-      '0%, 100%': { transform: 'translate(0, 0)' },
-      '50%': { transform: 'translate(100px, 50px)' },
-    },
-  },
-  gradientOrb2: {
-    position: 'absolute',
-    width: 500,
-    height: 500,
-    borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(236,72,153,0.06) 0%, transparent 60%)',
-    bottom: '-10%',
-    right: '-10%',
-    filter: 'blur(80px)',
-    animation: 'ambientFloat2 25s ease-in-out infinite',
-    '@keyframes ambientFloat2': {
-      '0%, 100%': { transform: 'translate(0, 0)' },
-      '50%': { transform: 'translate(-80px, -60px)' },
-    },
-  },
-  navbar: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1200,
-    px: { xs: 1.5, md: 3 },
-    py: 1.5,
-  },
-  navbarInner: {
-    maxWidth: 1400,
-    mx: 'auto',
-    display: 'flex',
-    alignItems: 'center',
-    gap: { xs: 1, md: 2 },
-    px: { xs: 1.5, md: 2.5 },
-    py: 1,
-    borderRadius: 4,
-    background: 'rgba(15,23,42,0.7)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255,255,255,0.06)',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-  },
-  logoContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 1.25,
-    cursor: 'pointer',
-    pr: { xs: 0, md: 2 },
-    mr: { xs: 0, md: 1 },
-    borderRight: { xs: 'none', md: '1px solid rgba(255,255,255,0.06)' },
-  },
-  logoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 2.5,
-    background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 4px 16px rgba(124,58,237,0.3)',
-  },
-  logoText: {
-    fontSize: '1.2rem',
-    fontWeight: 800,
-    background: 'linear-gradient(135deg, #a78bfa 0%, #f472b6 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    letterSpacing: '-0.02em',
-  },
-  navItems: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: { xs: 0.25, md: 0.5 },
-    flex: 1,
-    justifyContent: 'center',
-    overflowX: 'auto',
-    msOverflowStyle: 'none',
-    scrollbarWidth: 'none',
-    '&::-webkit-scrollbar': { display: 'none' },
-  },
-  rightSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: { xs: 0.5, md: 1 },
-    pl: { xs: 0, md: 1 },
-    ml: { xs: 0, md: 1 },
-    borderLeft: { xs: 'none', md: '1px solid rgba(255,255,255,0.06)' },
-  },
-  iconButton: {
-    color: '#94a3b8',
-    p: 1,
-    borderRadius: 2,
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      color: '#f8fafc',
-      background: 'rgba(124,58,237,0.1)',
-    },
-  },
-  userButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 1.25,
-    cursor: 'pointer',
-    p: 0.75,
-    pr: { xs: 0.75, md: 1.5 },
-    borderRadius: 2.5,
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      background: 'rgba(255,255,255,0.05)',
-    },
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    fontWeight: 700,
-    fontSize: '0.9rem',
-    background: 'linear-gradient(135deg, #7c3aed, #ec4899)',
-    border: '2px solid rgba(255,255,255,0.1)',
-  },
-  userName: {
-    color: '#f8fafc',
-    fontWeight: 600,
-    fontSize: '0.85rem',
-    lineHeight: 1.2,
-  },
-  userRole: {
-    color: '#64748b',
-    fontSize: '0.7rem',
-    textTransform: 'capitalize',
-  },
-  menuItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 1.5,
-    py: 1.25,
-    px: 2,
-    mx: 1,
-    borderRadius: 2,
-    color: '#e2e8f0',
-    fontSize: '0.9rem',
-    transition: 'all 0.15s ease',
-    '&:hover': {
-      background: 'rgba(124,58,237,0.1)',
-    },
-  },
-  main: {
-    pt: '88px',
-    minHeight: '100vh',
-    position: 'relative',
-    zIndex: 1,
-  },
 };
 
 export default MainLayout;
