@@ -50,9 +50,18 @@ const ProfilePage = () => {
     setPostsLoading(true);
     try {
       const { data } = await postsAPI.getUserPosts(user.id);
-      setUserPosts(data?.posts || []);
+      // Handle different API response formats
+      let posts = [];
+      if (Array.isArray(data)) {
+        posts = data;
+      } else if (data?.posts && Array.isArray(data.posts)) {
+        posts = data.posts;
+      } else if (data && typeof data === 'object') {
+        posts = [data];
+      }
+      setUserPosts(posts);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load posts:', err);
       setUserPosts([]);
     } finally {
       setPostsLoading(false);
@@ -63,9 +72,18 @@ const ProfilePage = () => {
     setPlacesLoading(true);
     try {
       const { data } = await placesAPI.getByUser(user.id);
-      setUserPlaces(data?.places || []);
+      // Handle different API response formats
+      let places = [];
+      if (Array.isArray(data)) {
+        places = data;
+      } else if (data?.places && Array.isArray(data.places)) {
+        places = data.places;
+      } else if (data && typeof data === 'object') {
+        places = [data];
+      }
+      setUserPlaces(places);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load places:', err);
       setUserPlaces([]);
     } finally {
       setPlacesLoading(false);
