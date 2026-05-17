@@ -38,7 +38,7 @@ const PlaceCard = ({ place, onViewDetails }) => (
       background: 'rgba(15,23,42,0.5)',
       border: '1px solid rgba(255,255,255,0.1)',
       borderRadius: 3,
-      p: 2.5,
+      overflow: 'hidden',
       cursor: 'pointer',
       transition: 'all 0.2s cubic-bezier(0.16,1,0.3,1)',
       '&:hover': {
@@ -46,92 +46,118 @@ const PlaceCard = ({ place, onViewDetails }) => (
         background: 'rgba(124,58,237,0.05)',
         transform: 'translateY(-4px)',
       },
+      display: 'flex',
+      flexDirection: 'column',
     }}
   >
-    {/* Header */}
-    <Box sx={{ mb: 2 }}>
-      <Typography
+    {/* Image */}
+    {place.photo_url && (
+      <Box
         sx={{
-          fontWeight: 700,
-          fontSize: '1.05rem',
-          color: '#f8fafc',
-          mb: 0.5,
-        }}
-      >
-        {place.name}
-      </Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <LocationOn sx={{ fontSize: 14, color: '#94a3b8' }} />
-        <Typography sx={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-          {place.address || 'No address'}
-        </Typography>
-      </Box>
-    </Box>
-
-    {/* Category Badge */}
-    <Box sx={{ mb: 2 }}>
-      <Chip
-        label={place.category || 'Uncategorized'}
-        size="small"
-        sx={{
-          background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(236,72,153,0.15))',
-          color: '#a78bfa',
-          border: '1px solid rgba(124,58,237,0.3)',
-          fontWeight: 600,
+          width: '100%',
+          height: 180,
+          background: `url(${place.photo_url}) center/cover`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%)',
+          }
         }}
       />
-    </Box>
-
-    {/* Description */}
-    {place.description && (
-      <Typography
-        sx={{
-          fontSize: '0.875rem',
-          color: '#cbd5e1',
-          lineHeight: 1.5,
-          mb: 2,
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-          minHeight: 40,
-        }}
-      >
-        {place.description}
-      </Typography>
     )}
 
-    {/* Footer */}
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        pt: 2,
-        borderTop: '1px solid rgba(255,255,255,0.05)',
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        {place.rating && (
-          <>
-            <Star
-              sx={{
-                fontSize: 14,
-                color: '#fbbf24',
-              }}
-            />
-            <Typography sx={{ fontSize: '0.85rem', color: '#f8fafc', fontWeight: 600 }}>
-              {place.rating.toFixed(1)}
-            </Typography>
-          </>
-        )}
+    {/* Content */}
+    <Box sx={{ p: 2.5, display: 'flex', flexDirection: 'column', flex: 1 }}>
+      {/* Header */}
+      <Box sx={{ mb: 2 }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: '1.05rem',
+            color: '#f8fafc',
+            mb: 0.5,
+          }}
+        >
+          {place.name}
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <LocationOn sx={{ fontSize: 14, color: '#94a3b8' }} />
+          <Typography sx={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+            {place.address || 'No address'}
+          </Typography>
+        </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <Person sx={{ fontSize: 14, color: '#64748b' }} />
-        <Typography sx={{ fontSize: '0.85rem', color: '#64748b' }}>
-          {place.likes_count || 0} likes
+      {/* Category Badge */}
+      <Box sx={{ mb: 2 }}>
+        <Chip
+          label={place.category || 'Uncategorized'}
+          size="small"
+          sx={{
+            background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(236,72,153,0.15))',
+            color: '#a78bfa',
+            border: '1px solid rgba(124,58,237,0.3)',
+            fontWeight: 600,
+          }}
+        />
+      </Box>
+
+      {/* Description */}
+      {place.description && (
+        <Typography
+          sx={{
+            fontSize: '0.875rem',
+            color: '#cbd5e1',
+            lineHeight: 1.5,
+            mb: 2,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            minHeight: 40,
+          }}
+        >
+          {place.description}
         </Typography>
+      )}
+
+      {/* Footer */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          pt: 2,
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+          marginTop: 'auto',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {place.rating && (
+            <>
+              <Star
+                sx={{
+                  fontSize: 14,
+                  color: '#fbbf24',
+                }}
+              />
+              <Typography sx={{ fontSize: '0.85rem', color: '#f8fafc', fontWeight: 600 }}>
+                {place.rating.toFixed(1)}
+              </Typography>
+            </>
+          )}
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Person sx={{ fontSize: 14, color: '#64748b' }} />
+          <Typography sx={{ fontSize: '0.85rem', color: '#64748b' }}>
+            {place.likes_count || 0} likes
+          </Typography>
+        </Box>
       </Box>
     </Box>
   </MotionCard>

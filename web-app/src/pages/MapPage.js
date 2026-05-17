@@ -9,7 +9,7 @@ import {
   MyLocation, Groups as GroupsIcon, Person, Shield,
   Logout, TravelExplore, Public, Lock, LocationOn,
   DynamicFeed, Layers, Map as MapIcon, Satellite,
-  ChatBubbleOutline, ExploreOutlined,
+  ChatBubbleOutline, ExploreOutlined, Settings,
 } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, ZoomControl } from 'react-leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -269,6 +269,9 @@ const MainMap = () => {
             </MenuItem>
             <MenuItem onClick={() => { setAnchorEl(null); navigate('/chats'); }}>
               <ChatBubbleOutline sx={{ fontSize: 18, mr: 1.5, color: '#71717a' }} /> Chats
+            </MenuItem>
+            <MenuItem onClick={() => { setAnchorEl(null); navigate('/settings'); }}>
+              <Settings sx={{ fontSize: 18, mr: 1.5, color: '#71717a' }} /> Settings
             </MenuItem>
             {(user?.role === 'moderator' || user?.role === 'admin') && (
               <MenuItem onClick={() => { setAnchorEl(null); navigate('/moderation'); }}>
