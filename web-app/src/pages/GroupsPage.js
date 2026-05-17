@@ -76,13 +76,23 @@ const GroupsPage = () => {
     setLoading(true);
     try {
       const { data } = await groupsAPI.getAll();
-      const list = Array.isArray(data) ? data : [];
+      // Handle different API response formats
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (data?.groups && Array.isArray(data.groups)) {
+        list = data.groups;
+      } else if (data && typeof data === 'object') {
+        // If it's a single object, wrap it in an array
+        list = [data];
+      }
       setGroups(list);
       // Only set selectedGroup if it's not already set and list has items
       setSelectedGroup((prev) => prev || (list.length > 0 ? list[0] : null));
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load groups:', err);
       notify.error('Failed to load groups');
+      setGroups([]);
     } finally {
       setLoading(false);
     }
@@ -93,9 +103,15 @@ const GroupsPage = () => {
     setMembersLoading(true);
     try {
       const { data } = await groupsAPI.getMembers(groupId);
-      setMembers(Array.isArray(data) ? data : []);
+      let memberList = [];
+      if (Array.isArray(data)) {
+        memberList = data;
+      } else if (data?.members && Array.isArray(data.members)) {
+        memberList = data.members;
+      }
+      setMembers(memberList);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load members:', err);
       setMembers([]);
     } finally {
       setMembersLoading(false);
@@ -112,12 +128,12 @@ const GroupsPage = () => {
     }
   }, [selectedGroup, loadMembers]);
 
-  const filteredGroups = groups.filter((g) =>
-    g.name.toLowerCase().includes(groupSearch.toLowerCase())
+  const filteredGroups = groups.filter((g) => 
+    g && g.name && g.name.toLowerCase().includes(groupSearch.toLowerCase())
   );
 
-  const isMember = (g) => g.is_member || g.owner_id === user?.id;
-  const isOwner = (g) => g.owner_id === user?.id;
+  const isMember = (g) => g && (g.is_member || g.owner_id === user?.id);
+  const isOwner = (g) => g && g.owner_id === user?.id;
 
   const handleJoin = async (groupId) => {
     setActionLoading(groupId);
