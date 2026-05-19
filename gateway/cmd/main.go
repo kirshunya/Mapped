@@ -160,6 +160,16 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	// Serve React static files
+	r.Static("/static", "/app/web-app/build/static")
+	r.StaticFile("/favicon.ico", "/app/web-app/build/favicon.ico")
+	r.StaticFile("/manifest.json", "/app/web-app/build/manifest.json")
+
+	// SPA fallback - serve index.html for all unmatched routes
+	r.NoRoute(func(c *gin.Context) {
+		c.File("/app/web-app/build/index.html")
+	})
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
