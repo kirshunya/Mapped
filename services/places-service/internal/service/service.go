@@ -24,6 +24,14 @@ func (s *PlacesService) CreatePlace(userID uint, username, userAvatar string, re
 		privacy = models.PrivacyPublic
 	}
 
+	// If GroupID is provided, validate user is a group member and set privacy to group
+	if req.GroupID != nil && *req.GroupID > 0 {
+		if !s.repo.IsGroupMember(*req.GroupID, userID) {
+			return nil, errors.New("user is not a member of this group")
+		}
+		privacy = models.PrivacyGroup
+	}
+
 	// Private and group places are visible immediately — no moderation needed.
 	// Only public places require moderator approval.
 	approval := models.ApprovalPending
@@ -44,6 +52,7 @@ func (s *PlacesService) CreatePlace(userID uint, username, userAvatar string, re
 		UserID:      userID,
 		Username:    username,
 		UserAvatar:  userAvatar,
+		GroupID:     req.GroupID,
 	}
 
 	err := s.repo.Create(place)
@@ -107,6 +116,17 @@ func (s *PlacesService) UpdatePlace(placeID, userID uint, req *models.UpdatePlac
 	if req.Privacy != "" {
 		place.Privacy = req.Privacy
 	}
+	if req.GroupID != nil {
+		// If GroupID is being set, validate user is a group member
+		if *req.GroupID > 0 && !s.repo.IsGroupMember(*req.GroupID, userID) {
+			return nil, errors.New("user is not a member of this group")
+		}
+		place.GroupID = req.GroupID
+		// If assigning to group, ensure privacy is set to group
+		if *req.GroupID > 0 {
+			place.Privacy = models.PrivacyGroup
+		}
+	}
 	if req.MediaURLs != nil {
 		mediaJSON, _ := json.Marshal(req.MediaURLs)
 		place.MediaURLs = string(mediaJSON)
@@ -156,7 +176,9 @@ func (s *PlacesService) CreateGroup(ownerID uint, ownerUsername, ownerAvatar, na
 	if err := s.repo.CreateGroup(group); err != nil {
 		return nil, err
 	}
-	_ = s.repo.AddGroupMember(group.ID, ownerID, ownerUsername, ownerAvatar, "admin")
+	if err := s.repo.AddGroupMember(group.ID, ownerID, ownerUsername, ownerAvatar, "admin"); err != nil {
+		return nil, errors.New("failed to add group owner as member: " + err.Error())
+	}
 	return group, nil
 }
 

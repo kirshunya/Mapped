@@ -97,7 +97,7 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	msg, err := h.service.SendMessage(uint(chatID), userID, username, req.Text)
+	msg, err := h.service.SendMessage(uint(chatID), userID, username, req.Text, req.LocationName, req.LocationLat, req.LocationLng)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -128,7 +128,11 @@ func (h *ChatHandler) ChatWS(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	client := &wsClient{conn: conn, chatID: chatID}
+	client := &wsClient{
+		conn:   conn,
+		chatID: chatID,
+		send:   make(chan []byte, 32),
+	}
 	h.hub.register <- client
 
 	go func() {
@@ -198,7 +202,6 @@ func (h *wsHub) run() {
 			if h.clients[c.chatID] == nil {
 				h.clients[c.chatID] = make(map[*wsClient]bool)
 			}
-			c.send = make(chan []byte, 32)
 			h.clients[c.chatID][c] = true
 			h.mu.Unlock()
 		case c := <-h.unregister:

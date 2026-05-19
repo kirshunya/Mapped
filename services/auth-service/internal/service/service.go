@@ -96,6 +96,9 @@ func (s *AuthService) UpdateUser(userID uint, req *models.UpdateUserRequest) (*m
 	if req.Bio != "" {
 		user.Bio = req.Bio
 	}
+	if req.Hashtags != "" {
+		user.Hashtags = req.Hashtags
+	}
 
 	err = s.repo.UpdateUser(user)
 	return user, err
@@ -115,6 +118,94 @@ func (s *AuthService) ChangeRole(adminID uint, req *models.ChangeRoleRequest) er
 
 func (s *AuthService) SearchUsers(query string, limit int, excludeID uint) ([]models.User, error) {
 	return s.repo.SearchUsers(query, limit, excludeID)
+}
+
+// SearchUsersAdvanced searches users with multiple filters
+func (s *AuthService) SearchUsersAdvanced(query string, role string, minFollowers int, hashtags []string, limit int, offset int, excludeID uint) ([]map[string]interface{}, error) {
+	return s.repo.SearchUsersAdvanced(query, role, minFollowers, hashtags, limit, offset, excludeID)
+}
+
+// ── Following System Methods ────────────────────────────────────────────
+
+// GetUserProfile returns a user's public profile with follow counts
+func (s *AuthService) GetUserProfile(userID, requesterID uint) (*models.UserProfile, error) {
+	user, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	followerCount := s.repo.GetFollowerCount(userID)
+	followingCount := s.repo.GetFollowingCount(userID)
+	isFollowing := requesterID > 0 && s.repo.IsFollowing(requesterID, userID)
+	isFollower := requesterID > 0 && s.repo.IsFollowing(userID, requesterID)
+
+	return &models.UserProfile{
+		ID:             user.ID,
+		Email:          user.Email,
+		Username:       user.Username,
+		Avatar:         user.Avatar,
+		Bio:            user.Bio,
+		Hashtags:       user.Hashtags,
+		IsActive:       user.IsActive,
+		CreatedAt:      user.CreatedAt,
+		FollowerCount:  int(followerCount),
+		FollowingCount: int(followingCount),
+		IsFollowing:    isFollowing,
+		IsFollower:     isFollower,
+	}, nil
+}
+
+// FollowUser creates a follow relationship
+func (s *AuthService) FollowUser(followerID, followingID uint) error {
+	if followerID == followingID {
+		return errors.New("cannot follow yourself")
+	}
+
+	// Check if user already follows
+	if s.repo.IsFollowing(followerID, followingID) {
+		return errors.New("already following this user")
+	}
+
+	// Check that both users exist
+	if _, err := s.repo.GetUserByID(followingID); err != nil {
+		return errors.New("user not found")
+	}
+
+	return s.repo.FollowUser(followerID, followingID)
+}
+
+// UnfollowUser removes a follow relationship
+func (s *AuthService) UnfollowUser(followerID, followingID uint) error {
+	if followerID == followingID {
+		return errors.New("cannot unfollow yourself")
+	}
+
+	// Check if user actually follows
+	if !s.repo.IsFollowing(followerID, followingID) {
+		return errors.New("not following this user")
+	}
+
+	return s.repo.UnfollowUser(followerID, followingID)
+}
+
+// GetFollowers gets list of users following the specified user
+func (s *AuthService) GetFollowers(userID uint, limit int, offset int) ([]models.FollowerResponse, error) {
+	// Check that user exists
+	if _, err := s.repo.GetUserByID(userID); err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	return s.repo.GetFollowers(userID, limit, offset)
+}
+
+// GetFollowing gets list of users that the specified user is following
+func (s *AuthService) GetFollowing(userID uint, limit int, offset int) ([]models.FollowResponse, error) {
+	// Check that user exists
+	if _, err := s.repo.GetUserByID(userID); err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	return s.repo.GetFollowing(userID, limit, offset)
 }
 
 func (s *AuthService) ValidateToken(tokenString string) (uint, string, error) {

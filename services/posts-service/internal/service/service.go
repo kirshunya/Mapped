@@ -159,11 +159,10 @@ func (s *PostsService) DeleteComment(commentID, userID uint) error {
 	if comment.UserID != userID {
 		return errors.New("not authorized")
 	}
-	err = s.repo.DeleteComment(commentID)
-	if err == nil {
-		_ = s.repo.DecrementCommentCount(comment.PostID)
+	if err := s.repo.DeleteComment(commentID); err != nil {
+		return err
 	}
-	return err
+	return s.repo.DecrementCommentCount(comment.PostID)
 }
 
 // Post Reactions
@@ -213,12 +212,45 @@ func (s *PostsService) ReactToComment(commentID, userID uint, reactionType strin
 			UserID:    userID,
 			Type:      reactionType,
 		}
-		return s.repo.CreateCommentReaction(reaction)
+		if err := s.repo.CreateCommentReaction(reaction); err != nil {
+			return err
+		}
 	} else if existingReaction.Type == reactionType {
 		// Remove reaction (toggle off)
-		return s.repo.DeleteCommentReaction(commentID, userID)
+		if err := s.repo.DeleteCommentReaction(commentID, userID); err != nil {
+			return err
+		}
 	} else {
 		// Update reaction type
-		return s.repo.UpdateCommentReaction(commentID, userID, reactionType)
+		if err := s.repo.UpdateCommentReaction(commentID, userID, reactionType); err != nil {
+			return err
+		}
 	}
+
+	// Update comment like count
+	likes, _, _ := s.repo.GetCommentReactionCounts(commentID)
+	return s.repo.UpdateCommentLikeCount(commentID, int(likes))
+}
+
+// GetRecommendedPosts returns popular posts for recommendations
+func (s *PostsService) GetRecommendedPosts(userID uint, limit, offset int) ([]models.PostResponse, error) {
+	if limit == 0 {
+		limit = 20
+	}
+
+	posts, err := s.repo.GetRecommendedPosts(limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]models.PostResponse, len(posts))
+	for i, post := range posts {
+		reaction, _ := s.repo.GetPostReaction(post.ID, userID)
+		resp[i] = models.PostResponse{
+			Post:         post,
+			UserLiked:    reaction != nil && reaction.Type == "like",
+			UserDisliked: reaction != nil && reaction.Type == "dislike",
+		}
+	}
+	return resp, nil
 }

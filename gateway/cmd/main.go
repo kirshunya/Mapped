@@ -14,7 +14,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/gorilla/websocket"
 )
 
 var jwtSecret []byte
@@ -45,6 +44,11 @@ func main() {
 			auth.GET("/me", proxyTo("http://auth-service:8081"))
 			auth.PUT("/me", proxyTo("http://auth-service:8081"))
 			auth.GET("/users/search", proxyTo("http://auth-service:8081"))
+			auth.GET("/users/:user_id", proxyTo("http://auth-service:8081"))
+			auth.POST("/users/:user_id/follow", proxyTo("http://auth-service:8081"))
+			auth.DELETE("/users/:user_id/follow", proxyTo("http://auth-service:8081"))
+			auth.GET("/users/:user_id/followers", proxyTo("http://auth-service:8081"))
+			auth.GET("/users/:user_id/following", proxyTo("http://auth-service:8081"))
 		}
 
 		admin := api.Group("/admin")
@@ -215,6 +219,21 @@ func proxyTo(targetHost string) gin.HandlerFunc {
 	rp := httputil.NewSingleHostReverseProxy(target)
 	rp.Director = func(req *http.Request) {
 		req.Header.Add("X-Forwarded-Host", req.Host)
+
+		// Preserve custom headers from jwtMiddleware
+		if userID := req.Header.Get("X-User-ID"); userID != "" {
+			req.Header.Set("X-User-ID", userID)
+		}
+		if role := req.Header.Get("X-User-Role"); role != "" {
+			req.Header.Set("X-User-Role", role)
+		}
+		if username := req.Header.Get("X-Username"); username != "" {
+			req.Header.Set("X-Username", username)
+		}
+		if avatar := req.Header.Get("X-Avatar"); avatar != "" {
+			req.Header.Set("X-Avatar", avatar)
+		}
+
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
 		path := req.URL.Path

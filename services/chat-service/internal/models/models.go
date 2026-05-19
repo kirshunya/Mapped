@@ -19,12 +19,16 @@ type ChatMember struct {
 }
 
 type ChatMessage struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	ChatID    uint      `gorm:"index" json:"chat_id"`
-	UserID    uint      `gorm:"index" json:"user_id"`
-	Username  string    `gorm:"size:100" json:"username"`
-	Text      string    `gorm:"type:text" json:"text"`
-	CreatedAt time.Time `json:"created_at"`
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	ChatID   uint   `gorm:"index" json:"chat_id"`
+	UserID   uint   `gorm:"index" json:"user_id"`
+	Username string `gorm:"size:100" json:"username"`
+	Text     string `gorm:"type:text" json:"text"`
+	// Location fields (optional)
+	LocationName string    `gorm:"size:200;default:''" json:"location_name,omitempty"`
+	LocationLat  float64   `gorm:"default:0" json:"location_lat,omitempty"`
+	LocationLng  float64   `gorm:"default:0" json:"location_lng,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type CreateChatRequest struct {
@@ -36,5 +40,8 @@ type CreateChatRequest struct {
 }
 
 type SendMessageRequest struct {
-	Text string `json:"text" binding:"required"`
+	Text         string  `json:"text"`
+	LocationName string  `json:"location_name,omitempty"`
+	LocationLat  float64 `json:"location_lat,omitempty"`
+	LocationLng  float64 `json:"location_lng,omitempty"`
 }

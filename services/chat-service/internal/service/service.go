@@ -69,17 +69,25 @@ func (s *ChatService) GetChats(userID uint) ([]models.Chat, error) {
 	return s.repo.GetChats(userID)
 }
 
-func (s *ChatService) SendMessage(chatID, userID uint, username, text string) (*models.ChatMessage, error) {
+func (s *ChatService) SendMessage(chatID, userID uint, username, text, locationName string, locationLat, locationLng float64) (*models.ChatMessage, error) {
 	if userID == 0 {
 		return nil, errors.New("unauthorized")
 	}
 	if !s.repo.IsChatMember(chatID, userID) {
 		return nil, errors.New("forbidden")
 	}
-	if text == "" {
-		return nil, errors.New("message required")
+	if text == "" && locationName == "" {
+		return nil, errors.New("message or location required")
 	}
-	msg := &models.ChatMessage{ChatID: chatID, UserID: userID, Username: username, Text: text}
+	msg := &models.ChatMessage{
+		ChatID:       chatID,
+		UserID:       userID,
+		Username:     username,
+		Text:         text,
+		LocationName: locationName,
+		LocationLat:  locationLat,
+		LocationLng:  locationLng,
+	}
 	if err := s.repo.CreateMessage(msg); err != nil {
 		return nil, err
 	}

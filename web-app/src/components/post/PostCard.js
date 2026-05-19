@@ -101,20 +101,31 @@ const PostCard = ({ post, onCommentClick, onUpdate }) => {
       {/* Header */}
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Avatar
+          onClick={() => navigate(`/users/${post.user_id}`)}
           sx={{
             width: 40,
             height: 40,
             background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
+            cursor: 'pointer',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              transform: 'scale(1.05)',
+              boxShadow: '0 4px 16px rgba(124, 58, 237, 0.3)',
+            },
           }}
         >
           {post.username?.[0]?.toUpperCase() || 'U'}
         </Avatar>
-        <Box sx={{ flex: 1 }}>
+        <Box sx={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/users/${post.user_id}`)}>
           <Typography
             sx={{
               color: '#fafafa',
               fontWeight: 600,
               fontSize: '0.95rem',
+              transition: 'color 0.2s',
+              '&:hover': {
+                color: '#7c3aed',
+              },
             }}
           >
             {post.username || 'Anonymous'}

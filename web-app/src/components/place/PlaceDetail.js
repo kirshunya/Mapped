@@ -11,8 +11,9 @@ import {
 } from '@mui/icons-material';
 import useAuthStore from '../../store/authStore';
 import { placesAPI, reviewsAPI, mediaAPI } from '../../services/api';
-import { getCat } from '../ui/categories';
+import { getCat, CATEGORIES } from '../ui/categories';
 import { useNotify } from '../ui/NotificationProvider';
+import DotsLine from '../ui/DotsLine';
 
 export const PlaceDetail = ({ place, onClose, onPlaceUpdated, onPlaceDeleted }) => {
   const { user } = useAuthStore();
@@ -366,9 +367,30 @@ export const PlaceDetail = ({ place, onClose, onPlaceUpdated, onPlaceDeleted }) 
                     {place.review_count || 0} review{place.review_count !== 1 ? 's' : ''}
                   </Typography>
                 </Box>
-              </Box>
+               </Box>
 
-              <Divider sx={{ my: 2 }} />
+               {/* Approval Status Timeline */}
+               <Box sx={{ my: 2.5 }}>
+                 <Typography sx={{ fontSize: '0.75rem', color: '#71717a', mb: 1.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                   Status Timeline
+                 </Typography>
+                 <DotsLine 
+                   steps={['Submitted', 'Under Review', 'Approved']}
+                   currentStep={
+                     place.approval === 'approved' ? 2 : 
+                     place.approval === 'rejected' ? 1 :
+                     place.approval === 'pending' ? 1 : 0
+                   }
+                   colors={[
+                     '#7c3aed',
+                     place.approval === 'rejected' ? '#ef4444' : '#f59e0b',
+                     '#10b981'
+                   ]}
+                   isDarkMode={true}
+                 />
+               </Box>
+
+               <Divider sx={{ my: 2 }} />
 
               {/* Meta */}
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -542,12 +564,4 @@ export const PlaceDetail = ({ place, onClose, onPlaceUpdated, onPlaceDeleted }) 
   );
 };
 
-const CATEGORIES = [
-  { value: 'cafe', label: 'Cafe', emoji: '☕' },
-  { value: 'restaurant', label: 'Restaurant', emoji: '🍽️' },
-  { value: 'park', label: 'Park', emoji: '🌿' },
-  { value: 'museum', label: 'Museum', emoji: '🏛️' },
-  { value: 'monument', label: 'Monument', emoji: '🗿' },
-  { value: 'nature', label: 'Nature', emoji: '🏞️' },
-  { value: 'other', label: 'Other', emoji: '📍' },
-];
+export default PlaceDetail;

@@ -49,6 +49,7 @@ type CreatePlaceRequest struct {
 	Address     string   `json:"address"`
 	Category    string   `json:"category"`
 	Privacy     Privacy  `json:"privacy"`
+	GroupID     *uint    `json:"group_id"`
 	MediaURLs   []string `json:"media_urls"`
 }
 
@@ -77,7 +78,10 @@ type Group struct {
 
 type GroupResponse struct {
 	Group
-	IsMember bool `json:"is_member"`
+	IsMember    bool   `json:"is_member"`
+	UserRole    string `json:"user_role"` // owner, admin, moderator, or member
+	IsOwner     bool   `json:"is_owner"`
+	AccessLevel string `json:"access_level"` // full, moderator, member, or none
 }
 
 type GroupMember struct {

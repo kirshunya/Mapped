@@ -38,6 +38,7 @@ import { useNotify } from '../components/ui/NotificationProvider';
 import useAuthStore from '../store/authStore';
 
 const MotionBox = motion(Box);
+const MotionPaper = motion(Paper);
 
 const PlaceDetailPage = () => {
   const { id } = useParams();
@@ -309,7 +310,10 @@ const PlaceDetailPage = () => {
 
         {/* Content */}
         <Container maxWidth="lg" sx={{ mt: -8, position: 'relative', zIndex: 1, pb: 6 }}>
-          <Paper
+          <MotionPaper
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
             sx={{
               p: { xs: 3, md: 4 },
               borderRadius: 4,
@@ -485,68 +489,85 @@ const PlaceDetailPage = () => {
                 </Button>
               </Paper>
 
-              {/* Reviews List */}
-              <Stack spacing={2}>
-                {reviews.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography sx={{ color: '#71717a' }}>
-                      No reviews yet. Be the first to review!
-                    </Typography>
-                  </Box>
-                ) : (
-                  reviews.map((review) => (
-                    <Paper
-                      key={review.id}
-                      sx={{
-                        p: 3,
-                        borderRadius: 3,
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.06)',
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Avatar
-                          src={review.user_avatar}
-                          sx={{
-                            width: 44,
-                            height: 44,
-                            background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
-                          }}
-                        >
-                          {review.username?.[0]?.toUpperCase() || <Person />}
-                        </Avatar>
-                        <Box sx={{ flex: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                            <Typography sx={{ color: '#fafafa', fontWeight: 600 }}>
-                              {review.username || `User ${review.user_id}`}
-                            </Typography>
-                            <Rating
-                              value={review.rating}
-                              readOnly
-                              size="small"
-                              sx={{
-                                '& .MuiRating-iconFilled': { color: '#f59e0b' },
-                                '& .MuiRating-iconEmpty': { color: '#3f3f46' },
-                              }}
-                            />
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                            <AccessTime sx={{ fontSize: 14, color: '#52525b' }} />
-                            <Typography sx={{ color: '#52525b', fontSize: '0.8rem' }}>
-                              {formatDate(review.created_at)}
-                            </Typography>
-                          </Box>
-                          <Typography sx={{ color: '#d4d4d8', lineHeight: 1.6 }}>
-                            {review.text}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Paper>
-                  ))
-                )}
-              </Stack>
+               {/* Reviews List */}
+               <Stack spacing={2}>
+                 {reviews.length === 0 ? (
+                   <MotionBox
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     sx={{ textAlign: 'center', py: 4 }}
+                   >
+                     <Typography sx={{ color: '#71717a' }}>
+                       No reviews yet. Be the first to review!
+                     </Typography>
+                   </MotionBox>
+                 ) : (
+                   <AnimatePresence>
+                     {reviews.map((review, idx) => (
+                       <MotionBox
+                         key={review.id}
+                         initial={{ opacity: 0, y: 10 }}
+                         animate={{ opacity: 1, y: 0 }}
+                         transition={{ delay: idx * 0.05 }}
+                       >
+                         <Paper
+                           sx={{
+                             p: 3,
+                             borderRadius: 3,
+                             background: 'rgba(255,255,255,0.03)',
+                             border: '1px solid rgba(255,255,255,0.06)',
+                             transition: 'all 0.2s ease',
+                             '&:hover': {
+                               background: 'rgba(124,58,237,0.06)',
+                               borderColor: 'rgba(124,58,237,0.2)',
+                             }
+                           }}
+                         >
+                           <Box sx={{ display: 'flex', gap: 2 }}>
+                             <Avatar
+                               src={review.user_avatar}
+                               sx={{
+                                 width: 44,
+                                 height: 44,
+                                 background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
+                               }}
+                             >
+                               {review.username?.[0]?.toUpperCase() || <Person />}
+                             </Avatar>
+                             <Box sx={{ flex: 1 }}>
+                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                                 <Typography sx={{ color: '#fafafa', fontWeight: 600 }}>
+                                   {review.username || `User ${review.user_id}`}
+                                 </Typography>
+                                 <Rating
+                                   value={review.rating}
+                                   readOnly
+                                   size="small"
+                                   sx={{
+                                     '& .MuiRating-iconFilled': { color: '#f59e0b' },
+                                     '& .MuiRating-iconEmpty': { color: '#3f3f46' },
+                                   }}
+                                 />
+                               </Box>
+                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                                 <AccessTime sx={{ fontSize: 14, color: '#52525b' }} />
+                                 <Typography sx={{ color: '#52525b', fontSize: '0.8rem' }}>
+                                   {formatDate(review.created_at)}
+                                 </Typography>
+                               </Box>
+                               <Typography sx={{ color: '#d4d4d8', lineHeight: 1.6 }}>
+                                 {review.text}
+                               </Typography>
+                             </Box>
+                           </Box>
+                         </Paper>
+                       </MotionBox>
+                     ))}
+                   </AnimatePresence>
+                 )}
+               </Stack>
             </Box>
-          </Paper>
+          </MotionPaper>
         </Container>
 
         {/* Lightbox */}

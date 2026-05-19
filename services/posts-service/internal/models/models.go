@@ -74,3 +74,13 @@ type CommentResponse struct {
 	LikeCount    int  `json:"like_count"`
 	DislikeCount int  `json:"dislike_count"`
 }
+
+type FeedResponse struct {
+	Posts []PostResponse `json:"posts"`
+	Total int            `json:"total"`
+}
+
+type CommentsResponse struct {
+	Comments []CommentResponse `json:"comments"`
+	Total    int               `json:"total"`
+}

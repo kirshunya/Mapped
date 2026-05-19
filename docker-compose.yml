@@ -12,9 +12,10 @@ services:
       - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mapsocial"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -24,6 +25,12 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -36,10 +43,20 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
     volumes:
       - kafka_data:/var/lib/kafka/data
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'test' | nc localhost 29092"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
   minio:
     image: minio/minio:latest
@@ -63,9 +80,11 @@ services:
       - DATABASE_URL=host=postgres user=mapsocial password=mapsocial123 dbname=mapsocial port=5432 sslmode=disable
       - JWT_SECRET=mapsocial-super-secret-key-2024
       - JWT_EXPIRY=720h
+      - KAFKA_BROKER=kafka:29092
     depends_on:
       postgres:
         condition: service_healthy
+    restart: on-failure
 
   places-service:
     build:
@@ -78,6 +97,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    restart: on-failure
 
   reviews-service:
     build:
@@ -90,6 +110,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    restart: on-failure
 
   media-service:
     build:
@@ -102,8 +123,7 @@ services:
       - MEDIA_PUBLIC_URL=http://localhost:8080/media
     volumes:
       - media_data:/app/storage
-    depends_on:
-      - gateway
+    restart: on-failure
 
   posts-service:
     build:
@@ -118,9 +138,11 @@ services:
       - DB_PASSWORD=mapsocial123
       - DB_NAME=mapsocial
       - PORT=8085
+      - KAFKA_BROKER=kafka:29092
     depends_on:
       postgres:
         condition: service_healthy
+    restart: on-failure
 
   chat-service:
     build:
@@ -131,9 +153,11 @@ services:
     environment:
       - DATABASE_URL=host=postgres user=mapsocial password=mapsocial123 dbname=mapsocial port=5432 sslmode=disable
       - PORT=8086
+      - KAFKA_BROKER=kafka:29092
     depends_on:
       postgres:
         condition: service_healthy
+    restart: on-failure
 
   gateway:
     build:
@@ -143,12 +167,7 @@ services:
       - "8080:8080"
     environment:
       - JWT_SECRET=mapsocial-super-secret-key-2024
-    depends_on:
-      - auth-service
-      - places-service
-      - reviews-service
-      - posts-service
-      - chat-service
+    restart: on-failure
 
   web:
     build:
@@ -160,6 +179,7 @@ services:
       - REACT_APP_API_URL=http://localhost:8080
     depends_on:
       - gateway
+    restart: on-failure
 
 volumes:
   postgres_data:

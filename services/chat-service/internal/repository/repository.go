@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"github.com/mapsocial/chat-service/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -15,7 +16,9 @@ func NewChatRepository(dsn string) *ChatRepository {
 	if err != nil {
 		panic(err)
 	}
-	_ = db.AutoMigrate(&models.Chat{}, &models.ChatMember{}, &models.ChatMessage{})
+	if err := db.AutoMigrate(&models.Chat{}, &models.ChatMember{}, &models.ChatMessage{}); err != nil {
+		panic(fmt.Sprintf("Failed to migrate database: %v", err))
+	}
 	return &ChatRepository{db: db}
 }
 
@@ -51,7 +54,7 @@ func (r *ChatRepository) GetMessages(chatID uint, limit int) ([]models.ChatMessa
 		limit = 50
 	}
 	var messages []models.ChatMessage
-	err := r.db.Where("chat_id = ?", chatID).Order("created_at DESC").Limit(limit).Find(&messages).Error
+	err := r.db.Where("chat_id = ?", chatID).Order("created_at ASC").Limit(limit).Find(&messages).Error
 	return messages, err
 }
 

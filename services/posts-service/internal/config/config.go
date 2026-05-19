@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type Config struct {
@@ -40,7 +41,9 @@ func (c *Config) ConnectDB() (*gorm.DB, error) {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent), // Only log errors, not all queries
+	})
 	if err != nil {
 		return nil, err
 	}

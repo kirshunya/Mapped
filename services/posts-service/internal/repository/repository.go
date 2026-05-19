@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"log"
+
 	"github.com/mapsocial/posts-service/internal/models"
 	"gorm.io/gorm"
 )
@@ -15,7 +17,13 @@ func NewPostsRepository(db *gorm.DB) *PostsRepository {
 
 // Posts
 func (r *PostsRepository) CreatePost(post *models.Post) error {
-	return r.db.Create(post).Error
+	err := r.db.Create(post).Error
+	if err != nil {
+		log.Printf("❌ CreatePost failed: userID=%d, content='%s', error=%v", post.UserID, post.Content, err)
+		return err
+	}
+	log.Printf("✅ CreatePost succeeded: postID=%d, userID=%d", post.ID, post.UserID)
+	return nil
 }
 
 func (r *PostsRepository) GetPostByID(id uint) (*models.Post, error) {
@@ -36,6 +44,16 @@ func (r *PostsRepository) GetUserPosts(userID uint, limit, offset int) ([]models
 	return posts, err
 }
 
+// GetPostsByUserIDs gets posts from multiple users (for following feed)
+func (r *PostsRepository) GetPostsByUserIDs(userIDs []uint, limit, offset int) ([]models.Post, error) {
+	if len(userIDs) == 0 {
+		return []models.Post{}, nil
+	}
+	var posts []models.Post
+	err := r.db.Where("user_id IN ?", userIDs).Order("created_at DESC").Limit(limit).Offset(offset).Find(&posts).Error
+	return posts, err
+}
+
 func (r *PostsRepository) DeletePost(id uint) error {
 	return r.db.Delete(&models.Post{}, id).Error
 }
@@ -50,7 +68,13 @@ func (r *PostsRepository) DecrementCommentCount(postID uint) error {
 
 // Comments
 func (r *PostsRepository) CreateComment(comment *models.PostComment) error {
-	return r.db.Create(comment).Error
+	err := r.db.Create(comment).Error
+	if err != nil {
+		log.Printf("❌ CreateComment failed: postID=%d, userID=%d, error=%v", comment.PostID, comment.UserID, err)
+		return err
+	}
+	log.Printf("✅ CreateComment succeeded: commentID=%d, postID=%d", comment.ID, comment.PostID)
+	return nil
 }
 
 func (r *PostsRepository) GetCommentsByPostID(postID uint) ([]models.PostComment, error) {
@@ -80,7 +104,13 @@ func (r *PostsRepository) GetPostReaction(postID, userID uint) (*models.PostReac
 }
 
 func (r *PostsRepository) CreatePostReaction(reaction *models.PostReaction) error {
-	return r.db.Create(reaction).Error
+	err := r.db.Create(reaction).Error
+	if err != nil {
+		log.Printf("❌ CreatePostReaction failed: postID=%d, userID=%d, type=%s, error=%v", reaction.PostID, reaction.UserID, reaction.Type, err)
+		return err
+	}
+	log.Printf("✅ CreatePostReaction succeeded: reactionID=%d, postID=%d", reaction.ID, reaction.PostID)
+	return nil
 }
 
 func (r *PostsRepository) UpdatePostReaction(postID, userID uint, reactionType string) error {
@@ -117,7 +147,13 @@ func (r *PostsRepository) GetCommentReaction(commentID, userID uint) (*models.Co
 }
 
 func (r *PostsRepository) CreateCommentReaction(reaction *models.CommentReaction) error {
-	return r.db.Create(reaction).Error
+	err := r.db.Create(reaction).Error
+	if err != nil {
+		log.Printf("❌ CreateCommentReaction failed: commentID=%d, userID=%d, type=%s, error=%v", reaction.CommentID, reaction.UserID, reaction.Type, err)
+		return err
+	}
+	log.Printf("✅ CreateCommentReaction succeeded: reactionID=%d, commentID=%d", reaction.ID, reaction.CommentID)
+	return nil
 }
 
 func (r *PostsRepository) UpdateCommentReaction(commentID, userID uint, reactionType string) error {
@@ -137,4 +173,17 @@ func (r *PostsRepository) GetCommentReactionCounts(commentID uint) (likes, disli
 	}
 	err = r.db.Model(&models.CommentReaction{}).Where("comment_id = ? AND type = ?", commentID, "dislike").Count(&dislikes).Error
 	return likes, dislikes, err
+}
+
+func (r *PostsRepository) UpdateCommentLikeCount(commentID uint, count int) error {
+	return r.db.Model(&models.PostComment{}).Where("id = ?", commentID).Update("like_count", count).Error
+}
+
+// GetRecommendedPosts gets popular posts based on likes (for recommendations)
+// Only returns posts with at least 1 like to be considered "recommended"
+func (r *PostsRepository) GetRecommendedPosts(limit, offset int) ([]models.Post, error) {
+	var posts []models.Post
+	// Only get posts with like_count > 0, order by like_count DESC, then by created_at DESC for tie-breaking
+	err := r.db.Where("like_count > ?", 0).Order("like_count DESC, created_at DESC").Limit(limit).Offset(offset).Find(&posts).Error
+	return posts, err
 }

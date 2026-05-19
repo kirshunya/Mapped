@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ func (h *PostsHandler) SetupRoutes(r *gin.Engine) {
 	// Posts
 	r.POST("/posts", h.CreatePost)
 	r.GET("/posts", h.GetFeed)
+	r.GET("/posts/recommended", h.GetRecommendedPosts)
 	r.GET("/posts/:id", h.GetPost)
 	r.DELETE("/posts/:id", h.DeletePost)
 	r.GET("/users/:user_id/posts", h.GetUserPosts)
@@ -62,12 +64,16 @@ func (h *PostsHandler) CreatePost(c *gin.Context) {
 	username := getUserUsername(c)
 	avatar := getUserAvatar(c)
 
+	log.Printf("📝 CreatePost request: userID=%d, username='%s', content='%s'", userID, username, req.Content)
+
 	post, err := h.service.CreatePost(userID, username, avatar, &req)
 	if err != nil {
+		log.Printf("❌ CreatePost failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	log.Printf("✅ CreatePost success: postID=%d, userID=%d", post.ID, post.UserID)
 	c.JSON(http.StatusCreated, post)
 }
 
@@ -85,23 +91,27 @@ func (h *PostsHandler) GetPost(c *gin.Context) {
 }
 
 func (h *PostsHandler) GetFeed(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	offset, _ := strconv.Atoi(c.Query("offset"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	userID := getUserID(c)
+
+	log.Printf("📖 GetFeed request: userID=%d, limit=%d, offset=%d", userID, limit, offset)
 
 	posts, err := h.service.GetFeed(userID, limit, offset)
 	if err != nil {
+		log.Printf("❌ GetFeed failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, posts)
+	log.Printf("✅ GetFeed success: returned %d posts", len(posts))
+	c.JSON(http.StatusOK, gin.H{"posts": posts, "total": len(posts)})
 }
 
 func (h *PostsHandler) GetUserPosts(c *gin.Context) {
 	targetUserID, _ := strconv.ParseUint(c.Param("user_id"), 10, 64)
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	offset, _ := strconv.Atoi(c.Query("offset"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	requesterID := getUserID(c)
 
 	posts, err := h.service.GetUserPosts(uint(targetUserID), requesterID, limit, offset)
@@ -110,7 +120,7 @@ func (h *PostsHandler) GetUserPosts(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, posts)
+	c.JSON(http.StatusOK, gin.H{"posts": posts, "total": len(posts)})
 }
 
 func (h *PostsHandler) DeletePost(c *gin.Context) {
@@ -156,7 +166,7 @@ func (h *PostsHandler) GetComments(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, comments)
+	c.JSON(http.StatusOK, gin.H{"comments": comments, "total": len(comments)})
 }
 
 func (h *PostsHandler) DeleteComment(c *gin.Context) {
@@ -205,4 +215,22 @@ func (h *PostsHandler) ReactToComment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
+}
+
+func (h *PostsHandler) GetRecommendedPosts(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	userID := getUserID(c)
+
+	log.Printf("📊 GetRecommendedPosts request: userID=%d, limit=%d, offset=%d", userID, limit, offset)
+
+	posts, err := h.service.GetRecommendedPosts(userID, limit, offset)
+	if err != nil {
+		log.Printf("❌ GetRecommendedPosts failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	log.Printf("✅ GetRecommendedPosts success: returned %d posts", len(posts))
+	c.JSON(http.StatusOK, gin.H{"posts": posts, "total": len(posts)})
 }

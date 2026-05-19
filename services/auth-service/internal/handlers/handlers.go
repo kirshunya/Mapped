@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,12 @@ func (h *AuthHandler) SetupRoutes(r *gin.Engine) {
 			auth.GET("/me", h.GetMe)
 			auth.PUT("/me", h.UpdateMe)
 			auth.GET("/users/search", h.SearchUsers)
+			auth.GET("/users/search/advanced", h.SearchUsersAdvanced)
+			auth.GET("/users/:user_id", h.GetUserProfile)
+			auth.POST("/users/:user_id/follow", h.FollowUser)
+			auth.DELETE("/users/:user_id/follow", h.UnfollowUser)
+			auth.GET("/users/:user_id/followers", h.GetFollowers)
+			auth.GET("/users/:user_id/following", h.GetFollowing)
 		}
 
 		admin := api.Group("/admin")
@@ -125,6 +132,178 @@ func (h *AuthHandler) SearchUsers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"users": users})
+}
+
+// SearchUsersAdvanced handles advanced user search with multiple filters
+func (h *AuthHandler) SearchUsersAdvanced(c *gin.Context) {
+	userID, _, err := h.getUserFromToken(c)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	// Parse query parameters
+	query := strings.TrimSpace(c.Query("q"))
+	role := strings.TrimSpace(c.Query("role"))
+	minFollowersStr := c.DefaultQuery("min_followers", "0")
+	hashtagsStr := c.Query("hashtags") // Comma-separated hashtags
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	// Convert to integers
+	minFollowers, _ := strconv.Atoi(minFollowersStr)
+	limit, _ := strconv.Atoi(limitStr)
+	offset, _ := strconv.Atoi(offsetStr)
+
+	// Parse hashtags (comma-separated)
+	var hashtags []string
+	if hashtagsStr != "" {
+		hashtagsStr = strings.TrimSpace(hashtagsStr)
+		parts := strings.Split(hashtagsStr, ",")
+		for _, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				hashtags = append(hashtags, trimmed)
+			}
+		}
+	}
+
+	// Call service to search
+	results, err := h.service.SearchUsersAdvanced(query, role, minFollowers, hashtags, limit, offset, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"users":  results,
+		"total":  len(results),
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
+// ── Following System Handlers ────────────────────────────────────────────
+
+func (h *AuthHandler) GetUserProfile(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	// Get requester ID from token (optional)
+	requesterID, _, _ := h.getUserFromToken(c)
+
+	profile, err := h.service.GetUserProfile(userID, requesterID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, profile)
+}
+
+func (h *AuthHandler) FollowUser(c *gin.Context) {
+	followerID, _, err := h.getUserFromToken(c)
+	if err != nil || followerID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	followingID := c.GetUint("user_id")
+	if followingID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	err = h.service.FollowUser(followerID, followingID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "followed"})
+}
+
+func (h *AuthHandler) UnfollowUser(c *gin.Context) {
+	followerID, _, err := h.getUserFromToken(c)
+	if err != nil || followerID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	followingID := c.GetUint("user_id")
+	if followingID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	err = h.service.UnfollowUser(followerID, followingID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "unfollowed"})
+}
+
+func (h *AuthHandler) GetFollowers(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limitInt, _ := strconv.Atoi(limitStr)
+	offsetInt, _ := strconv.Atoi(offsetStr)
+
+	if limitInt <= 0 {
+		limitInt = 20
+	}
+	if offsetInt < 0 {
+		offsetInt = 0
+	}
+
+	followers, err := h.service.GetFollowers(userID, limitInt, offsetInt)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"followers": followers})
+}
+
+func (h *AuthHandler) GetFollowing(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limitInt, _ := strconv.Atoi(limitStr)
+	offsetInt, _ := strconv.Atoi(offsetStr)
+
+	if limitInt <= 0 {
+		limitInt = 20
+	}
+	if offsetInt < 0 {
+		offsetInt = 0
+	}
+
+	following, err := h.service.GetFollowing(userID, limitInt, offsetInt)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"following": following})
 }
 
 func (h *AuthHandler) GetAllUsers(c *gin.Context) {

@@ -17,7 +17,9 @@ func NewPlacesRepository(databaseURL string) *PlacesRepository {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to database: %v", err))
 	}
-	db.AutoMigrate(&models.Place{})
+	if err := db.AutoMigrate(&models.Place{}, &models.Group{}, &models.GroupMember{}); err != nil {
+		panic(fmt.Sprintf("Failed to migrate database: %v", err))
+	}
 	return &PlacesRepository{db: db}
 }
 
@@ -205,7 +207,6 @@ func (r *PlacesRepository) GetPendingPublic() ([]models.Place, error) {
 // ── Groups ────────────────────────────────────────────────────────────────────
 
 func (r *PlacesRepository) CreateGroup(group *models.Group) error {
-	r.db.AutoMigrate(&models.Group{}, &models.GroupMember{})
 	return r.db.Create(group).Error
 }
 
@@ -222,16 +223,43 @@ func (r *PlacesRepository) GetGroups(userID uint) ([]models.GroupResponse, error
 	}
 	result := make([]models.GroupResponse, len(groups))
 	for i, g := range groups {
+		isMember := userID > 0 && r.IsGroupMember(g.ID, userID)
+		isOwner := g.OwnerID == userID
+		userRole := ""
+		accessLevel := "none"
+
+		if isMember && userID > 0 {
+			// Fetch user's role from group_members
+			var member models.GroupMember
+			if err := r.db.Where("group_id = ? AND user_id = ?", g.ID, userID).First(&member).Error; err == nil {
+				userRole = member.Role
+				// Map role to access level
+				switch member.Role {
+				case "admin":
+					accessLevel = "full"
+				case "moderator":
+					accessLevel = "moderator"
+				case "member":
+					accessLevel = "member"
+				}
+			}
+		} else if isOwner {
+			userRole = "owner"
+			accessLevel = "full"
+		}
+
 		result[i] = models.GroupResponse{
-			Group:    g,
-			IsMember: userID > 0 && r.IsGroupMember(g.ID, userID),
+			Group:       g,
+			IsMember:    isMember,
+			UserRole:    userRole,
+			IsOwner:     isOwner,
+			AccessLevel: accessLevel,
 		}
 	}
 	return result, nil
 }
 
 func (r *PlacesRepository) AddGroupMember(groupID, userID uint, username, avatar, role string) error {
-	r.db.AutoMigrate(&models.GroupMember{})
 	if r.IsGroupMember(groupID, userID) {
 		return nil
 	}

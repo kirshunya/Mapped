@@ -98,7 +98,9 @@ const CreatePostDialog = ({ open, onClose, onPostCreated }) => {
         postData.place_name = selectedPlace.name;
       }
 
-      await postsAPI.create(postData);
+      console.log('📤 Sending post data:', postData);
+      const createResponse = await postsAPI.create(postData);
+      console.log('📥 Post created response:', createResponse.data);
       
       // Reset form
       setContent('');
@@ -110,8 +112,13 @@ const CreatePostDialog = ({ open, onClose, onPostCreated }) => {
       onClose();
       notify.success('Post published');
     } catch (error) {
-      console.error('Failed to create post:', error);
-      notify.error('Failed to create post');
+      console.error('❌ Failed to create post:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        error: error,
+      });
+      notify.error('Failed to create post: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
       setUploading(false);

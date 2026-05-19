@@ -371,6 +371,27 @@ const MainMap = () => {
                     >
                       View Details
                     </Button>
+                    {place.user_id && (
+                      <Button 
+                        size="small" 
+                        fullWidth 
+                        variant="outlined"
+                        onClick={() => navigate(`/user/${place.user_id}`)}
+                        sx={{ 
+                          mt: 0.5,
+                          borderColor: 'rgba(124,58,237,0.3)',
+                          color: '#a78bfa',
+                          fontSize: '0.8rem',
+                          py: 0.75,
+                          '&:hover': {
+                            borderColor: '#7c3aed',
+                            background: 'rgba(124,58,237,0.1)',
+                          }
+                        }}
+                      >
+                        View Creator
+                      </Button>
+                    )}
                   </Box>
                 </Popup>
               </Marker>

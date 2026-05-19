@@ -332,6 +332,13 @@ func (h *PlacesHandler) AddGroupMember(c *gin.Context) {
 		body.Role = "member"
 	}
 
+	// Validate role
+	validRoles := map[string]bool{"member": true, "moderator": true}
+	if _, valid := validRoles[body.Role]; !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role. allowed: member, moderator"})
+		return
+	}
+
 	if err := h.service.AddGroupMember(uint(groupID), requesterID, body.UserID, body.Username, body.Avatar, body.Role); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

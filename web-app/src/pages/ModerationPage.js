@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Box, AppBar, Toolbar, Typography, IconButton, Button, Chip,
-  Avatar, CircularProgress, Alert, Snackbar,
+  Box, Typography, IconButton, Button, Chip,
+  Avatar, CircularProgress, Alert, Divider,
 } from '@mui/material';
 import {
-  ArrowBack, CheckCircle, Cancel, Public, Lock,
+  CheckCircle, Cancel, Public, Lock,
   LocationOn, Schedule, HourglassEmpty, Shield,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { placesAPI } from '../services/api';
 import useAuthStore from '../store/authStore';
 import { getCat } from '../components/ui/categories';
+import MainLayout from '../components/layout/MainLayout';
+
+const MotionBox = motion(Box);
 
 const TABS = [
   { key: 'pending',  label: 'Pending',  color: '#f59e0b', Icon: HourglassEmpty },
@@ -23,91 +26,183 @@ const PlaceRow = ({ place, onApprove, onReject, loadingId, tabKey }) => {
   const isBusy = loadingId === place.id;
 
   return (
-    <Box sx={{
-      borderRadius: 2.5, bgcolor: 'rgba(24,24,27,0.8)', backdropFilter: 'blur(12px)',
-      border: '1px solid rgba(255,255,255,0.05)', mb: 1.5, overflow: 'hidden',
-      transition: 'border-color 0.15s',
-      '&:hover': { borderColor: 'rgba(124,58,237,0.3)' },
-    }}>
-      <Box sx={{ height: 3, background: `linear-gradient(90deg, ${cat.color}60, transparent)` }} />
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
+    <MotionBox
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      sx={{
+        borderRadius: 3,
+        background: 'linear-gradient(180deg, rgba(15,15,20,0.95) 0%, rgba(9,9,11,0.98) 100%)',
+        border: '1px solid rgba(124,58,237,0.15)',
+        mb: 2,
+        overflow: 'hidden',
+        transition: 'all 0.2s ease',
+        '&:hover': { 
+          borderColor: 'rgba(124,58,237,0.3)',
+          boxShadow: '0 8px 24px rgba(124,58,237,0.1)',
+        },
+      }}
+    >
+      {/* Category color bar */}
+      <Box sx={{ height: 3, background: `linear-gradient(90deg, ${cat.color}80, ${cat.color}20)` }} />
+
+      <Box sx={{ p: 2.5 }}>
+        {/* Title and meta */}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
           <Box sx={{
-            width: 40, height: 40, borderRadius: 2, flexShrink: 0,
-            background: `${cat.color}18`, border: `1px solid ${cat.color}25`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17,
+            width: 44, height: 44, borderRadius: 2.5, flexShrink: 0,
+            background: `${cat.color}18`, border: `1px solid ${cat.color}30`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            fontSize: 18,
           }}>
             {cat.emoji}
           </Box>
+
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: '#fafafa', mb: 0.5 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: '0.95rem', color: '#fafafa', mb: 0.75 }}>
               {place.name}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-              <Chip label={place.privacy} size="small"
-                icon={place.privacy === 'public' ? <Public sx={{ fontSize: 11 }} /> : <Lock sx={{ fontSize: 11 }} />}
-                sx={{ height: 20, fontSize: '0.6875rem', textTransform: 'capitalize',
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }} />
-              <Chip label={place.category} size="small"
-                sx={{ height: 20, fontSize: '0.6875rem', background: `${cat.color}15`, color: cat.color }} />
+
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.25 }}>
+              <Chip 
+                label={place.privacy} 
+                size="small"
+                icon={place.privacy === 'public' ? <Public sx={{ fontSize: 12 }} /> : <Lock sx={{ fontSize: 12 }} />}
+                sx={{ 
+                  height: 22, 
+                  fontSize: '0.68rem', 
+                  fontWeight: 600,
+                  textTransform: 'capitalize',
+                  background: place.privacy === 'public' 
+                    ? 'rgba(59,130,246,0.15)' 
+                    : 'rgba(168,85,247,0.15)',
+                  color: place.privacy === 'public' 
+                    ? '#3b82f6'
+                    : '#a855f7',
+                  border: place.privacy === 'public'
+                    ? '1px solid rgba(59,130,246,0.3)'
+                    : '1px solid rgba(168,85,247,0.3)',
+                }}
+              />
+              <Chip 
+                label={place.category} 
+                size="small"
+                sx={{ 
+                  height: 22,
+                  fontSize: '0.68rem', 
+                  fontWeight: 600,
+                  background: `${cat.color}20`, 
+                  color: cat.color,
+                  border: `1px solid ${cat.color}40`,
+                }}
+              />
             </Box>
           </Box>
         </Box>
 
+        {/* Description */}
         {place.description && (
-          <Typography sx={{ fontSize: '0.8125rem', color: '#71717a', lineHeight: 1.6, mb: 1.5 }}>
-            {place.description.length > 100 ? place.description.slice(0, 100) + '…' : place.description}
+          <Typography sx={{ fontSize: '0.825rem', color: '#94a3b8', lineHeight: 1.6, mb: 2 }}>
+            {place.description.length > 120 ? place.description.slice(0, 120) + '…' : place.description}
           </Typography>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: tabKey === 'pending' ? 1.5 : 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Avatar sx={{ width: 20, height: 20, fontSize: '0.5625rem', background: 'linear-gradient(135deg,#7c3aed,#5b21b6)' }}>
+        {/* Metadata row */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          mb: tabKey === 'pending' ? 2 : 0,
+          pb: tabKey === 'pending' ? 2 : 0,
+          borderBottom: tabKey === 'pending' ? '1px solid rgba(255,255,255,0.06)' : 'none',
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            <Avatar 
+              sx={{ 
+                width: 24, 
+                height: 24, 
+                fontSize: '0.6rem', 
+                background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
+              }}
+            >
               {(place.username || '?')[0].toUpperCase()}
             </Avatar>
-            <Typography sx={{ fontSize: '0.75rem', color: '#71717a', fontWeight: 500 }}>@{place.username || 'unknown'}</Typography>
-            <Typography sx={{ color: '#27272a', fontSize: '0.75rem' }}>·</Typography>
-            <Schedule sx={{ fontSize: 11, color: '#52525b' }} />
-            <Typography sx={{ fontSize: '0.75rem', color: '#52525b' }}>
-              {new Date(place.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+            <Typography sx={{ fontSize: '0.75rem', color: '#a78bfa', fontWeight: 600 }}>
+              @{place.username || 'unknown'}
+            </Typography>
+            <Box sx={{ width: 3, height: 3, borderRadius: '50%', background: '#27272a' }} />
+            <Schedule sx={{ fontSize: 13, color: '#52525b' }} />
+            <Typography sx={{ fontSize: '0.75rem', color: '#71717a' }}>
+              {new Date(place.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <LocationOn sx={{ fontSize: 11, color: '#3f3f46' }} />
-            <Typography sx={{ fontSize: '0.6875rem', color: '#3f3f46', fontFamily: 'monospace' }}>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <LocationOn sx={{ fontSize: 12, color: '#52525b' }} />
+            <Typography sx={{ fontSize: '0.7rem', color: '#52525b', fontFamily: 'monospace' }}>
               {place.latitude?.toFixed(4)}, {place.longitude?.toFixed(4)}
             </Typography>
           </Box>
         </Box>
 
+        {/* Action buttons for pending */}
         {tabKey === 'pending' && (
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button fullWidth variant="contained" color="success" onClick={() => onApprove(place.id)} disabled={!!loadingId}
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button 
+              fullWidth 
+              variant="contained" 
+              onClick={() => onApprove(place.id)} 
+              disabled={!!loadingId}
               startIcon={isBusy ? <CircularProgress size={14} sx={{ color: 'inherit' }} /> : <CheckCircle sx={{ fontSize: 15 }} />}
-              sx={{ borderRadius: 2, fontSize: '0.8125rem' }}>
+              sx={{
+                borderRadius: 2.5,
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                '&:hover': { background: 'linear-gradient(135deg, #34d399, #10b981)' },
+                '&:disabled': { background: 'rgba(255,255,255,0.1)' },
+                textTransform: 'none',
+              }}
+            >
               Approve
             </Button>
-            <Button fullWidth variant="outlined" color="error" onClick={() => onReject(place.id)} disabled={!!loadingId}
+            <Button 
+              fullWidth 
+              variant="outlined" 
+              onClick={() => onReject(place.id)} 
+              disabled={!!loadingId}
               startIcon={<Cancel sx={{ fontSize: 15 }} />}
-              sx={{ borderRadius: 2, fontSize: '0.8125rem', borderColor: 'rgba(239,68,68,0.3)', '&:hover': { borderColor: '#ef4444' } }}>
+              sx={{
+                borderRadius: 2.5,
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                borderColor: 'rgba(239,68,68,0.4)',
+                color: '#ef4444',
+                textTransform: 'none',
+                '&:hover': { 
+                  borderColor: '#ef4444',
+                  background: 'rgba(239,68,68,0.08)',
+                },
+                '&:disabled': { background: 'rgba(255,255,255,0.05)' },
+              }}
+            >
               Reject
             </Button>
           </Box>
         )}
       </Box>
-    </Box>
+    </MotionBox>
   );
 };
 
 const ModerationPage = () => {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
 
   const [tab, setTab] = useState(0);
   const [places, setPlaces] = useState({ pending: [], approved: [], rejected: [] });
   const [fetching, setFetching] = useState(true);
   const [loadingAction, setLoadingAction] = useState(null);
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', type: 'success' });
 
   const fetchAll = useCallback(async () => {
     setFetching(true);
@@ -119,7 +214,9 @@ const ModerationPage = () => {
         approved: list.filter((p) => p.approval === 'approved'),
         rejected: list.filter((p) => p.approval === 'rejected'),
       });
-    } catch { setSnack({ open: true, message: 'Failed to load places', severity: 'error' }); }
+    } catch { 
+      setSnackbar({ open: true, message: 'Failed to load places', type: 'error' }); 
+    }
     finally { setFetching(false); }
   }, []);
 
@@ -127,15 +224,23 @@ const ModerationPage = () => {
 
   const handleApprove = async (id) => {
     setLoadingAction(id);
-    try { await placesAPI.approve(id, 'approved'); setSnack({ open: true, message: 'Place approved', severity: 'success' }); fetchAll(); }
-    catch { setSnack({ open: true, message: 'Failed to approve', severity: 'error' }); }
+    try { 
+      await placesAPI.approve(id, 'approved'); 
+      setSnackbar({ open: true, message: 'Place approved ✓', type: 'success' }); 
+      fetchAll(); 
+    }
+    catch { setSnackbar({ open: true, message: 'Failed to approve', type: 'error' }); }
     finally { setLoadingAction(null); }
   };
 
   const handleReject = async (id) => {
     setLoadingAction(id);
-    try { await placesAPI.approve(id, 'rejected'); setSnack({ open: true, message: 'Place rejected', severity: 'warning' }); fetchAll(); }
-    catch { setSnack({ open: true, message: 'Failed to reject', severity: 'error' }); }
+    try { 
+      await placesAPI.approve(id, 'rejected'); 
+      setSnackbar({ open: true, message: 'Place rejected', type: 'warning' }); 
+      fetchAll(); 
+    }
+    catch { setSnackbar({ open: true, message: 'Failed to reject', type: 'error' }); }
     finally { setLoadingAction(null); }
   };
 
@@ -143,79 +248,159 @@ const ModerationPage = () => {
   const currentList = places[currentTab.key];
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#09090b' }}>
-      <AppBar position="sticky" sx={{ bgcolor: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <Toolbar sx={{ gap: 1.5 }}>
-          <IconButton onClick={() => navigate('/')} sx={{ color: '#71717a' }}>
-            <ArrowBack sx={{ fontSize: 20 }} />
-          </IconButton>
-          <Box sx={{ width: 28, height: 28, borderRadius: 1.5, background: 'linear-gradient(135deg,#7c3aed,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📍</Box>
-          <Box>
-            <Typography sx={{ fontWeight: 700, fontSize: '0.875rem', color: '#fafafa', lineHeight: 1.2 }}>Mapped</Typography>
-            <Typography sx={{ fontSize: '0.6875rem', color: '#52525b', lineHeight: 1 }}>Moderation</Typography>
-          </Box>
-          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            {places.pending.length > 0 && (
-              <Chip size="small" icon={<HourglassEmpty sx={{ fontSize: 12 }} />}
-                label={`${places.pending.length} pending`}
-                sx={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)', fontWeight: 700, fontSize: '0.75rem' }} />
-            )}
-            <Avatar sx={{ width: 28, height: 28, fontSize: '0.6875rem', background: 'linear-gradient(135deg,#7c3aed,#5b21b6)' }}>
-              {user?.username?.[0]?.toUpperCase()}
-            </Avatar>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
-      <Box sx={{ maxWidth: 760, mx: 'auto', px: 2, py: 4 }}>
-        {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <Shield sx={{ color: '#7c3aed', fontSize: 22 }} />
-          <Box>
-            <Typography sx={{ fontWeight: 800, fontSize: '1.125rem', color: '#fafafa', letterSpacing: '-0.01em' }}>Moderation</Typography>
-            <Typography sx={{ fontSize: '0.8125rem', color: '#52525b' }}>Review community places before they go live</Typography>
-          </Box>
-        </Box>
-
-        {/* Stats */}
-        <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
-          {TABS.map((t, i) => (
-            <Box key={t.key} onClick={() => setTab(i)} sx={{
-              flex: 1, p: 1.75, borderRadius: 2.5, textAlign: 'center', cursor: 'pointer',
-              background: tab === i ? `${t.color}12` : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${tab === i ? `${t.color}40` : 'rgba(255,255,255,0.05)'}`,
-              transition: 'all 0.15s',
-              '&:hover': { borderColor: `${t.color}40` },
+    <MainLayout>
+      <Box sx={{ minHeight: 'calc(100vh - 64px)', px: { xs: 2, md: 3 }, py: 3.2 }}>
+        <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+          {/* Header */}
+          <MotionBox
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3.5 }}
+          >
+            <Box sx={{
+              width: 48, height: 48, borderRadius: 2.5,
+              background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(236,72,153,0.2))',
+              border: '1px solid rgba(124,58,237,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Typography sx={{ fontWeight: 800, fontSize: '1.25rem', color: t.color, lineHeight: 1 }}>{places[t.key].length}</Typography>
-              <Typography sx={{ fontSize: '0.6875rem', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', mt: 0.5 }}>{t.label}</Typography>
+              <Shield sx={{ fontSize: 24, color: '#a78bfa' }} />
             </Box>
-          ))}
-        </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 900, fontSize: '1.8rem', color: '#fafafa', letterSpacing: '-0.02em' }}>
+                Moderation
+              </Typography>
+              <Typography sx={{ fontSize: '0.85rem', color: '#71717a', mt: 0.5 }}>
+                Review community places before they go live
+              </Typography>
+            </Box>
+          </MotionBox>
 
-        {/* List */}
-        {fetching ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}><CircularProgress size={24} /></Box>
-        ) : currentList.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 8 }}>
-            <currentTab.Icon sx={{ fontSize: 40, color: '#27272a', mb: 1 }} />
-            <Typography sx={{ fontSize: '0.875rem', color: '#3f3f46', fontWeight: 600 }}>
-              {tab === 0 ? 'All caught up — no pending places' : `No ${currentTab.key} places`}
-            </Typography>
+          {/* Stats */}
+          <MotionBox
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 4 }}
+          >
+            {TABS.map((t, i) => (
+              <MotionBox
+                key={t.key}
+                whileHover={{ y: -2 }}
+                onClick={() => setTab(i)}
+                sx={{
+                  p: 2,
+                  borderRadius: 3,
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: tab === i 
+                    ? `linear-gradient(135deg, ${t.color}20, ${t.color}10)`
+                    : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${tab === i ? `${t.color}40` : 'rgba(255,255,255,0.06)'}`,
+                  transition: 'all 0.2s ease',
+                  '&:hover': { 
+                    borderColor: `${t.color}60`,
+                    background: `linear-gradient(135deg, ${t.color}25, ${t.color}15)`,
+                  },
+                }}
+              >
+                <Typography sx={{ fontWeight: 900, fontSize: '1.5rem', color: t.color, lineHeight: 1 }}>
+                  {places[t.key].length}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75, mt: 1 }}>
+                  <t.Icon sx={{ fontSize: 16, color: t.color }} />
+                  <Typography sx={{ fontSize: '0.75rem', color: t.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {t.label}
+                  </Typography>
+                </Box>
+              </MotionBox>
+            ))}
+          </MotionBox>
+
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)', my: 1 }} />
+
+          {/* List */}
+          <Box sx={{ mt: 3.5 }}>
+            {fetching ? (
+              <Box sx={{ textAlign: 'center', py: 10 }}>
+                <CircularProgress size={32} />
+              </Box>
+            ) : currentList.length === 0 ? (
+              <MotionBox
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                sx={{ 
+                  textAlign: 'center', 
+                  py: 10,
+                  borderRadius: 3,
+                  background: 'linear-gradient(135deg, rgba(124,58,237,0.1), rgba(236,72,153,0.08))',
+                  border: '1px solid rgba(124,58,237,0.2)',
+                }}
+              >
+                <currentTab.Icon sx={{ fontSize: 48, color: '#27272a', mb: 2 }} />
+                <Typography sx={{ fontSize: '0.95rem', color: '#52525b', fontWeight: 600 }}>
+                  {tab === 0 ? 'All caught up — no pending places' : `No ${currentTab.key} places`}
+                </Typography>
+              </MotionBox>
+            ) : (
+              <AnimatePresence>
+                <Box>
+                  {currentList.map((place) => (
+                    <PlaceRow 
+                      key={place.id} 
+                      place={place} 
+                      tabKey={currentTab.key}
+                      onApprove={handleApprove} 
+                      onReject={handleReject} 
+                      loadingId={loadingAction} 
+                    />
+                  ))}
+                </Box>
+              </AnimatePresence>
+            )}
           </Box>
-        ) : currentList.map((place) => (
-          <PlaceRow key={place.id} place={place} tabKey={currentTab.key}
-            onApprove={handleApprove} onReject={handleReject} loadingId={loadingAction} />
-        ))}
-      </Box>
 
-      <Snackbar open={snack.open} autoHideDuration={3500} onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ borderRadius: 2 }}>
-          {snack.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+          {/* Snackbar */}
+          {snackbar.open && (
+            <MotionBox
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              sx={{
+                position: 'fixed',
+                bottom: 24,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                px: 3,
+                py: 1.5,
+                borderRadius: 2.5,
+                background: snackbar.type === 'success'
+                  ? 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))'
+                  : snackbar.type === 'error'
+                  ? 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.08))'
+                  : 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.08))',
+                border: snackbar.type === 'success'
+                  ? '1px solid rgba(16,185,129,0.3)'
+                  : snackbar.type === 'error'
+                  ? '1px solid rgba(239,68,68,0.3)'
+                  : '1px solid rgba(245,158,11,0.3)',
+                color: snackbar.type === 'success'
+                  ? '#34d399'
+                  : snackbar.type === 'error'
+                  ? '#ef4444'
+                  : '#f59e0b',
+                zIndex: 1300,
+              }}
+            >
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                {snackbar.message}
+              </Typography>
+            </MotionBox>
+          )}
+        </Box>
+      </Box>
+    </MainLayout>
   );
 };
 
