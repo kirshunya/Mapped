@@ -1,12 +1,12 @@
 services:
   postgres:
     image: postgis/postgis:15-3.3
+    container_name: mapped-postgres
     environment:
       POSTGRES_USER: mapsocial
       POSTGRES_PASSWORD: mapsocial123
       POSTGRES_DB: mapsocial
-    ports:
-      - "5432:5432"
+    # Removed ports for Railway - services communicate via container network
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d:ro
@@ -16,9 +16,12 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    networks:
+      - mapped-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
+    container_name: mapped-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -31,16 +34,18 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    networks:
+      - mapped-network
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
-    ports:
-      - "9092:9092"
+    container_name: mapped-kafka
+    # Removed ports - only used internally
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
@@ -57,25 +62,28 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
+    networks:
+      - mapped-network
 
   minio:
     image: minio/minio:latest
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    container_name: mapped-minio
+    # Removed ports for Railway
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin123
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    networks:
+      - mapped-network
 
   auth-service:
     build:
       context: ./services/auth-service
       dockerfile: Dockerfile
-    ports:
-      - "8081:8081"
+    container_name: auth-service
+    # Removed ports - only used internally via gateway
     environment:
       - DATABASE_URL=host=postgres user=mapsocial password=mapsocial123 dbname=mapsocial port=5432 sslmode=disable
       - JWT_SECRET=mapsocial-super-secret-key-2024
@@ -85,52 +93,60 @@ services:
       postgres:
         condition: service_healthy
     restart: on-failure
+    networks:
+      - mapped-network
 
   places-service:
     build:
       context: ./services/places-service
       dockerfile: Dockerfile
-    ports:
-      - "8082:8082"
+    container_name: places-service
+    # Removed ports - only used internally
     environment:
       - DATABASE_URL=host=postgres user=mapsocial password=mapsocial123 dbname=mapsocial port=5432 sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
     restart: on-failure
+    networks:
+      - mapped-network
 
   reviews-service:
     build:
       context: ./services/reviews-service
       dockerfile: Dockerfile
-    ports:
-      - "8083:8083"
+    container_name: reviews-service
+    # Removed ports - only used internally
     environment:
       - DATABASE_URL=host=postgres user=mapsocial password=mapsocial123 dbname=mapsocial port=5432 sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
     restart: on-failure
+    networks:
+      - mapped-network
 
   media-service:
     build:
       context: ./services/media-service
       dockerfile: Dockerfile
-    ports:
-      - "8084:8084"
+    container_name: media-service
+    # Removed ports - only used internally
     environment:
       - MEDIA_STORAGE_PATH=/app/storage
       - MEDIA_PUBLIC_URL=http://localhost:8080/media
     volumes:
       - media_data:/app/storage
     restart: on-failure
+    networks:
+      - mapped-network
 
   posts-service:
     build:
       context: ./services/posts-service
       dockerfile: Dockerfile
-    ports:
-      - "8085:8085"
+    container_name: posts-service
+    # Removed ports - only used internally
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -143,13 +159,15 @@ services:
       postgres:
         condition: service_healthy
     restart: on-failure
+    networks:
+      - mapped-network
 
   chat-service:
     build:
       context: ./services/chat-service
       dockerfile: Dockerfile
-    ports:
-      - "8086:8086"
+    container_name: chat-service
+    # Removed ports - only used internally
     environment:
       - DATABASE_URL=host=postgres user=mapsocial password=mapsocial123 dbname=mapsocial port=5432 sslmode=disable
       - PORT=8086
@@ -158,28 +176,29 @@ services:
       postgres:
         condition: service_healthy
     restart: on-failure
+    networks:
+      - mapped-network
 
   gateway:
     build:
       context: ./gateway
       dockerfile: Dockerfile
+    container_name: gateway
     ports:
       - "8080:8080"
     environment:
       - JWT_SECRET=mapsocial-super-secret-key-2024
-    restart: on-failure
-
-  web:
-    build:
-      context: ./web-app
-      dockerfile: Dockerfile
-    ports:
-      - "3000:80"
-    environment:
-      - REACT_APP_API_URL=http://localhost:8080
+      - PORT=8080
     depends_on:
-      - gateway
+      - auth-service
+      - places-service
+      - reviews-service
+      - posts-service
+      - chat-service
+      - media-service
     restart: on-failure
+    networks:
+      - mapped-network
 
 volumes:
   postgres_data:
@@ -188,3 +207,7 @@ volumes:
   zookeeper_data:
   zookeeper_log:
   kafka_data:
+
+networks:
+  mapped-network:
+    driver: bridge
