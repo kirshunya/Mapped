@@ -1,0 +1,248 @@
+package service
+
+import (
+	"errors"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/mapsocial/auth-service/internal/models"
+	"github.com/mapsocial/auth-service/internal/repository"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type AuthService struct {
+	repo      *repository.AuthRepository
+	jwtSecret string
+	jwtExpiry time.Duration
+}
+
+func NewAuthService(repo *repository.AuthRepository, jwtSecret string, jwtExpiry time.Duration) *AuthService {
+	return &AuthService{repo: repo, jwtSecret: jwtSecret, jwtExpiry: jwtExpiry}
+}
+
+func (s *AuthService) Register(req *models.RegisterRequest) (*models.AuthResponse, error) {
+	existing, _ := s.repo.GetUserByEmail(req.Email)
+	if existing != nil {
+		return nil, errors.New("email already registered")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &models.User{
+		Email:    req.Email,
+		Username: req.Username,
+		Password: string(hashedPassword),
+		Role:     models.RoleUser,
+		IsActive: true,
+	}
+
+	if err := s.repo.CreateUser(user); err != nil {
+		return nil, err
+	}
+
+	token, err := s.generateToken(user.ID, string(user.Role))
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.AuthResponse{Token: token, User: *user}, nil
+}
+
+func (s *AuthService) Login(req *models.LoginRequest) (*models.AuthResponse, error) {
+	user, err := s.repo.GetUserByEmail(req.Email)
+	if err != nil {
+		return nil, errors.New("invalid credentials")
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		return nil, errors.New("invalid credentials")
+	}
+
+	if !user.IsActive {
+		return nil, errors.New("account is disabled")
+	}
+
+	token, err := s.generateToken(user.ID, string(user.Role))
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.AuthResponse{Token: token, User: *user}, nil
+}
+
+func (s *AuthService) GetUserByID(id uint) (*models.User, error) {
+	return s.repo.GetUserByID(id)
+}
+
+func (s *AuthService) GetAllUsers() ([]models.User, error) {
+	return s.repo.GetAllUsers()
+}
+
+func (s *AuthService) UpdateUser(userID uint, req *models.UpdateUserRequest) (*models.User, error) {
+	user, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Username != "" {
+		user.Username = req.Username
+	}
+	if req.Avatar != "" {
+		user.Avatar = req.Avatar
+	}
+	if req.Bio != "" {
+		user.Bio = req.Bio
+	}
+	if req.Hashtags != "" {
+		user.Hashtags = req.Hashtags
+	}
+
+	err = s.repo.UpdateUser(user)
+	return user, err
+}
+
+func (s *AuthService) ChangeRole(adminID uint, req *models.ChangeRoleRequest) error {
+	admin, err := s.repo.GetUserByID(adminID)
+	if err != nil {
+		return errors.New("admin not found")
+	}
+	if admin.Role != models.RoleAdmin {
+		return errors.New("only admin can change roles")
+	}
+
+	return s.repo.UpdateRole(req.UserID, req.Role)
+}
+
+func (s *AuthService) SearchUsers(query string, limit int, excludeID uint) ([]models.User, error) {
+	return s.repo.SearchUsers(query, limit, excludeID)
+}
+
+// SearchUsersAdvanced searches users with multiple filters
+func (s *AuthService) SearchUsersAdvanced(query string, role string, minFollowers int, hashtags []string, limit int, offset int, excludeID uint) ([]map[string]interface{}, error) {
+	return s.repo.SearchUsersAdvanced(query, role, minFollowers, hashtags, limit, offset, excludeID)
+}
+
+// ── Following System Methods ────────────────────────────────────────────
+
+// GetUserProfile returns a user's public profile with follow counts
+func (s *AuthService) GetUserProfile(userID, requesterID uint) (*models.UserProfile, error) {
+	user, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	followerCount := s.repo.GetFollowerCount(userID)
+	followingCount := s.repo.GetFollowingCount(userID)
+	isFollowing := requesterID > 0 && s.repo.IsFollowing(requesterID, userID)
+	isFollower := requesterID > 0 && s.repo.IsFollowing(userID, requesterID)
+
+	return &models.UserProfile{
+		ID:             user.ID,
+		Email:          user.Email,
+		Username:       user.Username,
+		Avatar:         user.Avatar,
+		Bio:            user.Bio,
+		Hashtags:       user.Hashtags,
+		IsActive:       user.IsActive,
+		CreatedAt:      user.CreatedAt,
+		FollowerCount:  int(followerCount),
+		FollowingCount: int(followingCount),
+		IsFollowing:    isFollowing,
+		IsFollower:     isFollower,
+	}, nil
+}
+
+// FollowUser creates a follow relationship
+func (s *AuthService) FollowUser(followerID, followingID uint) error {
+	if followerID == followingID {
+		return errors.New("cannot follow yourself")
+	}
+
+	// Check if user already follows
+	if s.repo.IsFollowing(followerID, followingID) {
+		return errors.New("already following this user")
+	}
+
+	// Check that both users exist
+	if _, err := s.repo.GetUserByID(followingID); err != nil {
+		return errors.New("user not found")
+	}
+
+	return s.repo.FollowUser(followerID, followingID)
+}
+
+// UnfollowUser removes a follow relationship
+func (s *AuthService) UnfollowUser(followerID, followingID uint) error {
+	if followerID == followingID {
+		return errors.New("cannot unfollow yourself")
+	}
+
+	// Check if user actually follows
+	if !s.repo.IsFollowing(followerID, followingID) {
+		return errors.New("not following this user")
+	}
+
+	return s.repo.UnfollowUser(followerID, followingID)
+}
+
+// GetFollowers gets list of users following the specified user
+func (s *AuthService) GetFollowers(userID uint, limit int, offset int) ([]models.FollowerResponse, error) {
+	// Check that user exists
+	if _, err := s.repo.GetUserByID(userID); err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	return s.repo.GetFollowers(userID, limit, offset)
+}
+
+// GetFollowing gets list of users that the specified user is following
+func (s *AuthService) GetFollowing(userID uint, limit int, offset int) ([]models.FollowResponse, error) {
+	// Check that user exists
+	if _, err := s.repo.GetUserByID(userID); err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	return s.repo.GetFollowing(userID, limit, offset)
+}
+
+func (s *AuthService) ValidateToken(tokenString string) (uint, string, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(s.jwtSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return 0, "", errors.New("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return 0, "", errors.New("invalid claims")
+	}
+
+	userID := uint(claims["user_id"].(float64))
+	role := claims["role"].(string)
+	return userID, role, nil
+}
+
+func (s *AuthService) generateToken(userID uint, role string) (string, error) {
+	user, _ := s.repo.GetUserByID(userID)
+	username := ""
+	avatar := ""
+	if user != nil {
+		username = user.Username
+		avatar = user.Avatar
+	}
+	claims := jwt.MapClaims{
+		"user_id":  userID,
+		"role":     role,
+		"username": username,
+		"avatar":   avatar,
+		"exp":      time.Now().Add(s.jwtExpiry).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(s.jwtSecret))
+}
