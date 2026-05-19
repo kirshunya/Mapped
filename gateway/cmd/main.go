@@ -18,6 +18,19 @@ import (
 
 var jwtSecret []byte
 
+func getServiceURL(serviceName string, defaultPort string) string {
+	// Перво проверим переменную окружения для явного указания URL
+	// Например: AUTH_SERVICE_URL, PLACES_SERVICE_URL и т.д.
+	envVar := strings.ToUpper(serviceName) + "_SERVICE_URL"
+	if url := os.Getenv(envVar); url != "" {
+		return url
+	}
+
+	// Если не задана явно, используем localhost для локального развития
+	// или имя контейнера для docker-compose
+	return "http://" + serviceName + ":" + defaultPort
+}
+
 func main() {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
@@ -39,98 +52,113 @@ func main() {
 	{
 		auth := api.Group("/auth")
 		{
-			auth.POST("/register", proxyTo("http://auth-service:8081"))
-			auth.POST("/login", proxyTo("http://auth-service:8081"))
-			auth.GET("/me", proxyTo("http://auth-service:8081"))
-			auth.PUT("/me", proxyTo("http://auth-service:8081"))
-			auth.GET("/users/search", proxyTo("http://auth-service:8081"))
-			auth.GET("/users/:user_id", proxyTo("http://auth-service:8081"))
-			auth.POST("/users/:user_id/follow", proxyTo("http://auth-service:8081"))
-			auth.DELETE("/users/:user_id/follow", proxyTo("http://auth-service:8081"))
-			auth.GET("/users/:user_id/followers", proxyTo("http://auth-service:8081"))
-			auth.GET("/users/:user_id/following", proxyTo("http://auth-service:8081"))
+			authURL := getServiceURL("auth", "8081")
+			auth.POST("/register", proxyTo(authURL))
+			auth.POST("/login", proxyTo(authURL))
+			auth.GET("/me", proxyTo(authURL))
+			auth.PUT("/me", proxyTo(authURL))
+			auth.GET("/users/search", proxyTo(authURL))
+			auth.GET("/users/:user_id", proxyTo(authURL))
+			auth.POST("/users/:user_id/follow", proxyTo(authURL))
+			auth.DELETE("/users/:user_id/follow", proxyTo(authURL))
+			auth.GET("/users/:user_id/followers", proxyTo(authURL))
+			auth.GET("/users/:user_id/following", proxyTo(authURL))
 		}
 
 		admin := api.Group("/admin")
 		{
-			admin.GET("/users", proxyTo("http://auth-service:8081"))
-			admin.PUT("/users/role", proxyTo("http://auth-service:8081"))
+			authURL := getServiceURL("auth", "8081")
+			admin.GET("/users", proxyTo(authURL))
+			admin.PUT("/users/role", proxyTo(authURL))
 		}
 
 		places := api.Group("/places")
 		{
-			places.GET("/recommendations", proxyTo("http://places-service:8082"))
-			places.GET("/all", proxyTo("http://places-service:8082"))
-			places.GET("", proxyTo("http://places-service:8082"))
-			places.POST("", proxyTo("http://places-service:8082"))
-			places.GET("/:id", proxyTo("http://places-service:8082"))
-			places.PUT("/:id", proxyTo("http://places-service:8082"))
-			places.DELETE("/:id", proxyTo("http://places-service:8082"))
-			places.PUT("/:id/approve", proxyTo("http://places-service:8082"))
-			places.GET("/:id/reviews", proxyTo("http://reviews-service:8083"))
+			placesURL := getServiceURL("places", "8082")
+			reviewsURL := getServiceURL("reviews", "8083")
+			places.GET("/recommendations", proxyTo(placesURL))
+			places.GET("/all", proxyTo(placesURL))
+			places.GET("", proxyTo(placesURL))
+			places.POST("", proxyTo(placesURL))
+			places.GET("/:id", proxyTo(placesURL))
+			places.PUT("/:id", proxyTo(placesURL))
+			places.DELETE("/:id", proxyTo(placesURL))
+			places.PUT("/:id/approve", proxyTo(placesURL))
+			places.GET("/:id/reviews", proxyTo(reviewsURL))
 		}
 
 		reviews := api.Group("/reviews")
 		{
-			reviews.GET("", proxyTo("http://reviews-service:8083"))
-			reviews.POST("", proxyTo("http://reviews-service:8083"))
-			reviews.GET("/:id", proxyTo("http://reviews-service:8083"))
-			reviews.PUT("/:id", proxyTo("http://reviews-service:8083"))
-			reviews.DELETE("/:id", proxyTo("http://reviews-service:8083"))
-			reviews.GET("/:id/comments", proxyTo("http://reviews-service:8083"))
+			reviewsURL := getServiceURL("reviews", "8083")
+			reviews.GET("", proxyTo(reviewsURL))
+			reviews.POST("", proxyTo(reviewsURL))
+			reviews.GET("/:id", proxyTo(reviewsURL))
+			reviews.PUT("/:id", proxyTo(reviewsURL))
+			reviews.DELETE("/:id", proxyTo(reviewsURL))
+			reviews.GET("/:id/comments", proxyTo(reviewsURL))
 		}
 
-		api.POST("/reactions", proxyTo("http://reviews-service:8083"))
-		api.POST("/comments", proxyTo("http://reviews-service:8083"))
+		reviewsURL := getServiceURL("reviews", "8083")
+		api.POST("/reactions", proxyTo(reviewsURL))
+		api.POST("/comments", proxyTo(reviewsURL))
 
-		api.GET("/users/:user_id/places", proxyTo("http://places-service:8082"))
-		api.GET("/users/:user_id/reviews", proxyTo("http://reviews-service:8083"))
-		api.GET("/search", proxyTo("http://places-service:8082"))
+		placesURL := getServiceURL("places", "8082")
+		reviewsURL2 := getServiceURL("reviews", "8083")
+		api.GET("/users/:user_id/places", proxyTo(placesURL))
+		api.GET("/users/:user_id/reviews", proxyTo(reviewsURL2))
+		api.GET("/search", proxyTo(placesURL))
 
 		groups := api.Group("/groups")
 		{
-			groups.GET("", proxyTo("http://places-service:8082"))
-			groups.POST("", proxyTo("http://places-service:8082"))
-			groups.GET("/:id", proxyTo("http://places-service:8082"))
-			groups.POST("/:id/join", proxyTo("http://places-service:8082"))
-			groups.POST("/:id/leave", proxyTo("http://places-service:8082"))
-			groups.GET("/:id/members", proxyTo("http://places-service:8082"))
-			groups.POST("/:id/members", proxyTo("http://places-service:8082"))
+			placesURL := getServiceURL("places", "8082")
+			groups.GET("", proxyTo(placesURL))
+			groups.POST("", proxyTo(placesURL))
+			groups.GET("/:id", proxyTo(placesURL))
+			groups.POST("/:id/join", proxyTo(placesURL))
+			groups.POST("/:id/leave", proxyTo(placesURL))
+			groups.GET("/:id/members", proxyTo(placesURL))
+			groups.POST("/:id/members", proxyTo(placesURL))
 		}
 
 		posts := api.Group("/posts")
 		{
-			posts.GET("", proxyTo("http://posts-service:8085"))
-			posts.POST("", proxyTo("http://posts-service:8085"))
-			posts.GET("/:id", proxyTo("http://posts-service:8085"))
-			posts.DELETE("/:id", proxyTo("http://posts-service:8085"))
-			posts.GET("/:id/comments", proxyTo("http://posts-service:8085"))
-			posts.POST("/:id/comments", proxyTo("http://posts-service:8085"))
-			posts.POST("/:id/reactions", proxyTo("http://posts-service:8085"))
+			postsURL := getServiceURL("posts", "8085")
+			posts.GET("", proxyTo(postsURL))
+			posts.POST("", proxyTo(postsURL))
+			posts.GET("/:id", proxyTo(postsURL))
+			posts.DELETE("/:id", proxyTo(postsURL))
+			posts.GET("/:id/comments", proxyTo(postsURL))
+			posts.POST("/:id/comments", proxyTo(postsURL))
+			posts.POST("/:id/reactions", proxyTo(postsURL))
 		}
 
-		api.GET("/users/:user_id/posts", proxyTo("http://posts-service:8085"))
-		api.DELETE("/comments/:id", proxyTo("http://posts-service:8085"))
-		api.POST("/comments/:id/reactions", proxyTo("http://posts-service:8085"))
+		postsURL := getServiceURL("posts", "8085")
+		api.GET("/users/:user_id/posts", proxyTo(postsURL))
+		api.DELETE("/comments/:id", proxyTo(postsURL))
+		api.POST("/comments/:id/reactions", proxyTo(postsURL))
 
 		chats := api.Group("/chats")
 		{
-			chats.GET("", proxyTo("http://chat-service:8086"))
-			chats.POST("", proxyTo("http://chat-service:8086"))
-			chats.GET("/:id/messages", proxyTo("http://chat-service:8086"))
-			chats.POST("/:id/messages", proxyTo("http://chat-service:8086"))
+			chatURL := getServiceURL("chat", "8086")
+			chats.GET("", proxyTo(chatURL))
+			chats.POST("", proxyTo(chatURL))
+			chats.GET("/:id/messages", proxyTo(chatURL))
+			chats.POST("/:id/messages", proxyTo(chatURL))
 		}
-		api.GET("/ws/chats/:id", proxyTo("http://chat-service:8086"))
+		chatURL := getServiceURL("chat", "8086")
+		api.GET("/ws/chats/:id", proxyTo(chatURL))
 
 		media := api.Group("/media")
 		{
-			media.POST("/upload", proxyMultipart("http://media-service:8084"))
+			mediaURL := getServiceURL("media", "8084")
+			media.POST("/upload", proxyMultipart(mediaURL))
 		}
 	}
 
 	r.GET("/media/uploads/*rest", func(c *gin.Context) {
 		rest := c.Param("rest")
-		targetURL := "http://media-service:8084/uploads" + rest
+		mediaURL := getServiceURL("media", "8084")
+		targetURL := mediaURL + "/uploads" + rest
 
 		req, err := http.NewRequest(http.MethodGet, targetURL, nil)
 		if err != nil {
