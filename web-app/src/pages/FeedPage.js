@@ -217,7 +217,7 @@ const FeedPage = () => {
           <Fab
             sx={{
               position: 'fixed',
-              bottom: { xs: 100, md: 28 },
+              bottom: 28,
               right: 28,
               background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
               color: '#fff',
