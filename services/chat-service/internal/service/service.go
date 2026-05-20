@@ -56,9 +56,14 @@ func (s *ChatService) CreateChat(ownerID uint, username string, req *models.Crea
 
 	// Обработка участников из user_ids (для групповых и новых чатов)
 	if len(req.UserIDs) > 0 {
-		for _, userID := range req.UserIDs {
+		for i, userID := range req.UserIDs {
 			if userID > 0 && userID != ownerID {
-				_ = s.repo.AddMember(&models.ChatMember{ChatID: chat.ID, UserID: userID, Username: "member", Role: "member"})
+				username := "member"
+				// Если передано имя для этого пользователя, используем его
+				if i < len(req.Usernames) && req.Usernames[i] != "" {
+					username = req.Usernames[i]
+				}
+				_ = s.repo.AddMember(&models.ChatMember{ChatID: chat.ID, UserID: userID, Username: username, Role: "member"})
 			}
 		}
 	}
@@ -78,7 +83,7 @@ func (s *ChatService) CreateChat(ownerID uint, username string, req *models.Crea
 	return chat, nil
 }
 
-func (s *ChatService) GetChats(userID uint) ([]models.Chat, error) {
+func (s *ChatService) GetChats(userID uint) ([]models.ChatResponse, error) {
 	if userID == 0 {
 		return nil, errors.New("unauthorized")
 	}

@@ -35,14 +35,49 @@ func (r *ChatRepository) AddMember(member *models.ChatMember) error {
 	return r.db.Create(member).Error
 }
 
-func (r *ChatRepository) GetChats(userID uint) ([]models.Chat, error) {
+func (r *ChatRepository) GetChats(userID uint) ([]models.ChatResponse, error) {
 	var chats []models.Chat
 	err := r.db.Table("chats").
 		Joins("JOIN chat_members ON chat_members.chat_id = chats.id").
 		Where("chat_members.user_id = ?", userID).
 		Order("chats.created_at DESC").
 		Find(&chats).Error
-	return chats, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert Chat to ChatResponse and load members for each chat
+	var responses []models.ChatResponse
+	for _, chat := range chats {
+		var members []models.ChatMember
+		err := r.db.Where("chat_id = ?", chat.ID).Find(&members).Error
+		if err != nil {
+			return nil, err
+		}
+
+		response := models.ChatResponse{
+			ID:        chat.ID,
+			Name:      chat.Name,
+			Type:      chat.Type,
+			OwnerID:   chat.OwnerID,
+			CreatedAt: chat.CreatedAt,
+			Members:   members,
+		}
+
+		// For direct chats, find the other user's username
+		if chat.Type == "direct" && len(members) > 0 {
+			for _, member := range members {
+				if member.UserID != userID {
+					response.Username = member.Username
+					break
+				}
+			}
+		}
+
+		responses = append(responses, response)
+	}
+
+	return responses, nil
 }
 
 func (r *ChatRepository) CreateMessage(message *models.ChatMessage) error {

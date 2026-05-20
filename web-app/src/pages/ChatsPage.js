@@ -194,6 +194,7 @@ const ChatsPage = () => {
     try {
       const payload = {
         user_ids: selectedUsers.map((u) => u.id),
+        usernames: selectedUsers.map((u) => u.username),
         type: chatType,
         name: chatType === 'group' ? newChatName : null,
       };

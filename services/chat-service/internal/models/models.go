@@ -32,12 +32,23 @@ type ChatMessage struct {
 }
 
 type CreateChatRequest struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	UserID        uint   `json:"user_id"`        // для обратной совместимости
-	User2ID       uint   `json:"user2_id"`       // для обратной совместимости
-	User2Username string `json:"user2_username"` // для обратной совместимости
-	UserIDs       []uint `json:"user_ids"`       // для массива участников (групповой чат)
+	Name          string   `json:"name"`
+	Type          string   `json:"type"`
+	UserID        uint     `json:"user_id"`        // для обратной совместимости
+	User2ID       uint     `json:"user2_id"`       // для обратной совместимости
+	User2Username string   `json:"user2_username"` // для обратной совместимости
+	UserIDs       []uint   `json:"user_ids"`       // для массива участников (групповой чат)
+	Usernames     []string `json:"usernames"`      // для имен участников
+}
+
+type ChatResponse struct {
+	ID        uint         `json:"id"`
+	Name      string       `json:"name"`
+	Type      string       `json:"type"`
+	OwnerID   uint         `json:"owner_id"`
+	CreatedAt time.Time    `json:"created_at"`
+	Members   []ChatMember `json:"members"`
+	Username  string       `json:"username,omitempty"` // For direct chats - name of the other user
 }
 
 type SendMessageRequest struct {
