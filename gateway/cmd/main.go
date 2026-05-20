@@ -39,98 +39,98 @@ func main() {
 	{
 		auth := api.Group("/auth")
 		{
-			auth.POST("/register", proxyTo("http://auth-service:8081"))
-			auth.POST("/login", proxyTo("http://auth-service:8081"))
-			auth.GET("/me", proxyTo("http://auth-service:8081"))
-			auth.PUT("/me", proxyTo("http://auth-service:8081"))
-			auth.GET("/users/search", proxyTo("http://auth-service:8081"))
-			auth.GET("/users/:user_id", proxyTo("http://auth-service:8081"))
-			auth.POST("/users/:user_id/follow", proxyTo("http://auth-service:8081"))
-			auth.DELETE("/users/:user_id/follow", proxyTo("http://auth-service:8081"))
-			auth.GET("/users/:user_id/followers", proxyTo("http://auth-service:8081"))
-			auth.GET("/users/:user_id/following", proxyTo("http://auth-service:8081"))
+			auth.POST("/register", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.POST("/login", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.GET("/me", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.PUT("/me", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.GET("/users/search", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.GET("/users/:user_id", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.POST("/users/:user_id/follow", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.DELETE("/users/:user_id/follow", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.GET("/users/:user_id/followers", proxyTo("http://mapped-auth-service-1:8081"))
+			auth.GET("/users/:user_id/following", proxyTo("http://mapped-auth-service-1:8081"))
 		}
 
 		admin := api.Group("/admin")
 		{
-			admin.GET("/users", proxyTo("http://auth-service:8081"))
-			admin.PUT("/users/role", proxyTo("http://auth-service:8081"))
+			admin.GET("/users", proxyTo("http://mapped-auth-service-1:8081"))
+			admin.PUT("/users/role", proxyTo("http://mapped-auth-service-1:8081"))
 		}
 
 		places := api.Group("/places")
 		{
-			places.GET("/recommendations", proxyTo("http://places-service:8082"))
-			places.GET("/all", proxyTo("http://places-service:8082"))
-			places.GET("", proxyTo("http://places-service:8082"))
-			places.POST("", proxyTo("http://places-service:8082"))
-			places.GET("/:id", proxyTo("http://places-service:8082"))
-			places.PUT("/:id", proxyTo("http://places-service:8082"))
-			places.DELETE("/:id", proxyTo("http://places-service:8082"))
-			places.PUT("/:id/approve", proxyTo("http://places-service:8082"))
-			places.GET("/:id/reviews", proxyTo("http://reviews-service:8083"))
+			places.GET("/recommendations", proxyTo("http://mapped-places-service-1:8082"))
+			places.GET("/all", proxyTo("http://mapped-places-service-1:8082"))
+			places.GET("", proxyTo("http://mapped-places-service-1:8082"))
+			places.POST("", proxyTo("http://mapped-places-service-1:8082"))
+			places.GET("/:id", proxyTo("http://mapped-places-service-1:8082"))
+			places.PUT("/:id", proxyTo("http://mapped-places-service-1:8082"))
+			places.DELETE("/:id", proxyTo("http://mapped-places-service-1:8082"))
+			places.PUT("/:id/approve", proxyTo("http://mapped-places-service-1:8082"))
+			places.GET("/:id/reviews", proxyTo("http://mapped-reviews-service-1:8083"))
 		}
 
 		reviews := api.Group("/reviews")
 		{
-			reviews.GET("", proxyTo("http://reviews-service:8083"))
-			reviews.POST("", proxyTo("http://reviews-service:8083"))
-			reviews.GET("/:id", proxyTo("http://reviews-service:8083"))
-			reviews.PUT("/:id", proxyTo("http://reviews-service:8083"))
-			reviews.DELETE("/:id", proxyTo("http://reviews-service:8083"))
-			reviews.GET("/:id/comments", proxyTo("http://reviews-service:8083"))
+			reviews.GET("", proxyTo("http://mapped-reviews-service-1:8083"))
+			reviews.POST("", proxyTo("http://mapped-reviews-service-1:8083"))
+			reviews.GET("/:id", proxyTo("http://mapped-reviews-service-1:8083"))
+			reviews.PUT("/:id", proxyTo("http://mapped-reviews-service-1:8083"))
+			reviews.DELETE("/:id", proxyTo("http://mapped-reviews-service-1:8083"))
+			reviews.GET("/:id/comments", proxyTo("http://mapped-reviews-service-1:8083"))
 		}
 
-		api.POST("/reactions", proxyTo("http://reviews-service:8083"))
-		api.POST("/comments", proxyTo("http://reviews-service:8083"))
+		api.POST("/reactions", proxyTo("http://mapped-reviews-service-1:8083"))
+		api.POST("/comments", proxyTo("http://mapped-reviews-service-1:8083"))
 
-		api.GET("/users/:user_id/places", proxyTo("http://places-service:8082"))
-		api.GET("/users/:user_id/reviews", proxyTo("http://reviews-service:8083"))
-		api.GET("/search", proxyTo("http://places-service:8082"))
+		api.GET("/users/:user_id/places", proxyTo("http://mapped-places-service-1:8082"))
+		api.GET("/users/:user_id/reviews", proxyTo("http://mapped-reviews-service-1:8083"))
+		api.GET("/search", proxyTo("http://mapped-places-service-1:8082"))
 
 		groups := api.Group("/groups")
 		{
-			groups.GET("", proxyTo("http://places-service:8082"))
-			groups.POST("", proxyTo("http://places-service:8082"))
-			groups.GET("/:id", proxyTo("http://places-service:8082"))
-			groups.POST("/:id/join", proxyTo("http://places-service:8082"))
-			groups.POST("/:id/leave", proxyTo("http://places-service:8082"))
-			groups.GET("/:id/members", proxyTo("http://places-service:8082"))
-			groups.POST("/:id/members", proxyTo("http://places-service:8082"))
+			groups.GET("", proxyTo("http://mapped-places-service-1:8082"))
+			groups.POST("", proxyTo("http://mapped-places-service-1:8082"))
+			groups.GET("/:id", proxyTo("http://mapped-places-service-1:8082"))
+			groups.POST("/:id/join", proxyTo("http://mapped-places-service-1:8082"))
+			groups.POST("/:id/leave", proxyTo("http://mapped-places-service-1:8082"))
+			groups.GET("/:id/members", proxyTo("http://mapped-places-service-1:8082"))
+			groups.POST("/:id/members", proxyTo("http://mapped-places-service-1:8082"))
 		}
 
 		posts := api.Group("/posts")
 		{
-			posts.GET("", proxyTo("http://posts-service:8085"))
-			posts.POST("", proxyTo("http://posts-service:8085"))
-			posts.GET("/:id", proxyTo("http://posts-service:8085"))
-			posts.DELETE("/:id", proxyTo("http://posts-service:8085"))
-			posts.GET("/:id/comments", proxyTo("http://posts-service:8085"))
-			posts.POST("/:id/comments", proxyTo("http://posts-service:8085"))
-			posts.POST("/:id/reactions", proxyTo("http://posts-service:8085"))
+			posts.GET("", proxyTo("http://mapped-posts-service-1:8085"))
+			posts.POST("", proxyTo("http://mapped-posts-service-1:8085"))
+			posts.GET("/:id", proxyTo("http://mapped-posts-service-1:8085"))
+			posts.DELETE("/:id", proxyTo("http://mapped-posts-service-1:8085"))
+			posts.GET("/:id/comments", proxyTo("http://mapped-posts-service-1:8085"))
+			posts.POST("/:id/comments", proxyTo("http://mapped-posts-service-1:8085"))
+			posts.POST("/:id/reactions", proxyTo("http://mapped-posts-service-1:8085"))
 		}
 
-		api.GET("/users/:user_id/posts", proxyTo("http://posts-service:8085"))
-		api.DELETE("/comments/:id", proxyTo("http://posts-service:8085"))
-		api.POST("/comments/:id/reactions", proxyTo("http://posts-service:8085"))
+		api.GET("/users/:user_id/posts", proxyTo("http://mapped-posts-service-1:8085"))
+		api.DELETE("/comments/:id", proxyTo("http://mapped-posts-service-1:8085"))
+		api.POST("/comments/:id/reactions", proxyTo("http://mapped-posts-service-1:8085"))
 
 		chats := api.Group("/chats")
 		{
-			chats.GET("", proxyTo("http://chat-service:8086"))
-			chats.POST("", proxyTo("http://chat-service:8086"))
-			chats.GET("/:id/messages", proxyTo("http://chat-service:8086"))
-			chats.POST("/:id/messages", proxyTo("http://chat-service:8086"))
+			chats.GET("", proxyTo("http://mapped-chat-service-1:8086"))
+			chats.POST("", proxyTo("http://mapped-chat-service-1:8086"))
+			chats.GET("/:id/messages", proxyTo("http://mapped-chat-service-1:8086"))
+			chats.POST("/:id/messages", proxyTo("http://mapped-chat-service-1:8086"))
 		}
-		api.GET("/ws/chats/:id", proxyTo("http://chat-service:8086"))
+		api.GET("/ws/chats/:id", proxyTo("http://mapped-chat-service-1:8086"))
 
 		media := api.Group("/media")
 		{
-			media.POST("/upload", proxyMultipart("http://media-service:8084"))
+			media.POST("/upload", proxyMultipart("http://mapped-media-service-1:8084"))
 		}
 	}
 
 	r.GET("/media/uploads/*rest", func(c *gin.Context) {
 		rest := c.Param("rest")
-		targetURL := "http://media-service:8084/uploads" + rest
+		targetURL := "http://mapped-media-service-1:8084/uploads" + rest
 
 		req, err := http.NewRequest(http.MethodGet, targetURL, nil)
 		if err != nil {
