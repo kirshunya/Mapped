@@ -34,9 +34,10 @@ type ChatMessage struct {
 type CreateChatRequest struct {
 	Name          string `json:"name"`
 	Type          string `json:"type"`
-	UserID        uint   `json:"user_id"`
-	User2ID       uint   `json:"user2_id"`
-	User2Username string `json:"user2_username"`
+	UserID        uint   `json:"user_id"`        // для обратной совместимости
+	User2ID       uint   `json:"user2_id"`       // для обратной совместимости
+	User2Username string `json:"user2_username"` // для обратной совместимости
+	UserIDs       []uint `json:"user_ids"`       // для массива участников (групповой чат)
 }
 
 type SendMessageRequest struct {

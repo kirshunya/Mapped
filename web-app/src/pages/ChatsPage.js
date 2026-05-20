@@ -194,6 +194,7 @@ const ChatsPage = () => {
     try {
       const payload = {
         user_ids: selectedUsers.map((u) => u.id),
+        type: chatType,
         name: chatType === 'group' ? newChatName : null,
       };
       const { data } = await chatsAPI.createChat(payload);

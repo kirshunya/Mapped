@@ -19,6 +19,7 @@ func (s *ChatService) CreateChat(ownerID uint, username string, req *models.Crea
 	if ownerID == 0 {
 		return nil, errors.New("unauthorized")
 	}
+
 	chatType := req.Type
 	if chatType == "" {
 		chatType = "direct"
@@ -29,6 +30,10 @@ func (s *ChatService) CreateChat(ownerID uint, username string, req *models.Crea
 		otherUserID := req.UserID
 		if otherUserID == 0 {
 			otherUserID = req.User2ID
+		}
+		// Если отправлен массив user_ids, используем первый элемент для direct чата
+		if otherUserID == 0 && len(req.UserIDs) > 0 {
+			otherUserID = req.UserIDs[0]
 		}
 		if otherUserID > 0 && otherUserID != ownerID {
 			existingChat, err := s.repo.FindDirectChat(ownerID, otherUserID)
@@ -48,11 +53,22 @@ func (s *ChatService) CreateChat(ownerID uint, username string, req *models.Crea
 		return nil, err
 	}
 	_ = s.repo.AddMember(&models.ChatMember{ChatID: chat.ID, UserID: ownerID, Username: username, Role: "owner"})
-	if req.UserID > 0 && req.UserID != ownerID {
+
+	// Обработка участников из user_ids (для групповых и новых чатов)
+	if len(req.UserIDs) > 0 {
+		for _, userID := range req.UserIDs {
+			if userID > 0 && userID != ownerID {
+				_ = s.repo.AddMember(&models.ChatMember{ChatID: chat.ID, UserID: userID, Username: "member", Role: "member"})
+			}
+		}
+	}
+
+	// Старая логика для обратной совместимости
+	if req.UserID > 0 && req.UserID != ownerID && len(req.UserIDs) == 0 {
 		memberUsername := "member"
 		_ = s.repo.AddMember(&models.ChatMember{ChatID: chat.ID, UserID: req.UserID, Username: memberUsername, Role: "member"})
 	}
-	if req.User2ID > 0 && req.User2ID != ownerID {
+	if req.User2ID > 0 && req.User2ID != ownerID && len(req.UserIDs) == 0 {
 		memberUsername := req.User2Username
 		if memberUsername == "" {
 			memberUsername = "member"
