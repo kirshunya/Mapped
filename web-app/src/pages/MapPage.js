@@ -358,10 +358,7 @@ const MainMap = () => {
                       size="small" 
                       fullWidth 
                       variant="contained"
-                      onClick={() => {
-                        setSelectedPlace(place);
-                        setMapCenter({ lat: place.latitude, lng: place.longitude });
-                      }}
+                      onClick={() => navigate(`/places/${place.id}`)}
                       sx={{ 
                         mt: 0.5,
                         background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
