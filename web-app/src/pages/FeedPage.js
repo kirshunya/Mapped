@@ -213,12 +213,15 @@ const FeedPage = () => {
         <MotionBox
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
+          sx={{
+            position: 'fixed',
+            bottom: 28,
+            right: 28,
+            zIndex: 1000,
+          }}
         >
           <Fab
             sx={{
-              position: 'fixed',
-              bottom: 28,
-              right: 28,
               background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
               color: '#fff',
               boxShadow: '0 10px 30px rgba(124,58,237,0.35)',
