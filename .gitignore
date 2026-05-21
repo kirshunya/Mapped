@@ -24,3 +24,14 @@ go.work.sum
 
 # env file
 .env
+
+# Build artifacts
+web-app/build
+gateway/static
+gateway/gateway
+services/*/cmd
+services/*/main
+
+# Node modules
+node_modules/
+
