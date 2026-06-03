@@ -1,0 +1,110 @@
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: ${DB_USER:-mapsocial}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-RailwayProd2024!SecurePass123}
+      POSTGRES_DB: ${DB_NAME:-mapped_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mapsocial"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./services/auth-service
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-mapsocial}:${DB_PASSWORD:-RailwayProd2024!SecurePass123}@postgres:5432/${DB_NAME:-mapped_db}
+      JWT_SECRET: ${JWT_SECRET:-railway-production-secret-key-32-chars-min-8e9f7a2b4c5d6e9f0a1b2c3d4e5f6g7h}
+      PORT: 8081
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - postgres
+
+  places-service:
+    build: ./services/places-service
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-mapsocial}:${DB_PASSWORD:-RailwayProd2024!SecurePass123}@postgres:5432/${DB_NAME:-mapped_db}
+      JWT_SECRET: ${JWT_SECRET:-railway-production-secret-key-32-chars-min-8e9f7a2b4c5d6e9f0a1b2c3d4e5f6g7h}
+      PORT: 8082
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - postgres
+
+  reviews-service:
+    build: ./services/reviews-service
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-mapsocial}:${DB_PASSWORD:-RailwayProd2024!SecurePass123}@postgres:5432/${DB_NAME:-mapped_db}
+      JWT_SECRET: ${JWT_SECRET:-railway-production-secret-key-32-chars-min-8e9f7a2b4c5d6e9f0a1b2c3d4e5f6g7h}
+      PORT: 8083
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - postgres
+
+  media-service:
+    build: ./services/media-service
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-mapsocial}:${DB_PASSWORD:-RailwayProd2024!SecurePass123}@postgres:5432/${DB_NAME:-mapped_db}
+      JWT_SECRET: ${JWT_SECRET:-railway-production-secret-key-32-chars-min-8e9f7a2b4c5d6e9f0a1b2c3d4e5f6g7h}
+      PORT: 8084
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - postgres
+
+  posts-service:
+    build: ./services/posts-service
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-mapsocial}:${DB_PASSWORD:-RailwayProd2024!SecurePass123}@postgres:5432/${DB_NAME:-mapped_db}
+      JWT_SECRET: ${JWT_SECRET:-railway-production-secret-key-32-chars-min-8e9f7a2b4c5d6e9f0a1b2c3d4e5f6g7h}
+      PORT: 8085
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - postgres
+
+  chat-service:
+    build: ./services/chat-service
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-mapsocial}:${DB_PASSWORD:-RailwayProd2024!SecurePass123}@postgres:5432/${DB_NAME:-mapped_db}
+      JWT_SECRET: ${JWT_SECRET:-railway-production-secret-key-32-chars-min-8e9f7a2b4c5d6e9f0a1b2c3d4e5f6g7h}
+      PORT: 8086
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - postgres
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:-railway-production-secret-key-32-chars-min-8e9f7a2b4c5d6e9f0a1b2c3d4e5f6g7h}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PLACES_SERVICE_URL: http://places-service:8082
+      REVIEWS_SERVICE_URL: http://reviews-service:8083
+      MEDIA_SERVICE_URL: http://media-service:8084
+      POSTS_SERVICE_URL: http://posts-service:8085
+      CHAT_SERVICE_URL: http://chat-service:8086
+    depends_on:
+      - postgres
+      - auth-service
+      - places-service
+      - reviews-service
+      - media-service
+      - posts-service
+      - chat-service
+
+  web:
+    build: ./web-app
+    ports:
+      - "80:3000"
+    environment:
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8080/api/v1}
+      PORT: 3000
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:
