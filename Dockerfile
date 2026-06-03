@@ -1,11 +1,11 @@
 # Dockerfile for Railway Gateway
-# Builds only the Go gateway service (frontend is served by gateway from static files)
+# Builds only the Go gateway service
 
 FROM golang:1.23-alpine AS builder
-WORKDIR /app
+WORKDIR /app/gateway
 COPY gateway/go.mod gateway/go.sum ./
 RUN go mod download
-COPY gateway .
+COPY gateway/* .
 RUN CGO_ENABLED=0 GOOS=linux go build -o gateway ./cmd
 
 FROM alpine:latest
@@ -15,7 +15,7 @@ WORKDIR /app
 RUN apk add --no-cache curl bash
 
 # Copy gateway binary
-COPY --from=builder /app/gateway .
+COPY --from=builder /app/gateway/gateway .
 
 # Expose port
 EXPOSE 8080
