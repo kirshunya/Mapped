@@ -1,0 +1,58 @@
+{
+  "projectId": "c30fc180-1cc9-455a-a532-a3a68729159c",
+  "services": {
+    "postgres": {
+      "startCommand": "docker run -d postgis/postgis:15-3.3",
+      "buildCommand": "echo 'Using prebuilt image postgis/postgis:15-3.3'",
+      "watchPatterns": ["migrations/**"]
+    },
+    "auth-service": {
+      "root": "services/auth-service",
+      "buildCommand": "go build -o auth-service cmd/main.go",
+      "startCommand": "./auth-service",
+      "port": 8081
+    },
+    "places-service": {
+      "root": "services/places-service",
+      "buildCommand": "go build -o places-service cmd/main.go",
+      "startCommand": "./places-service",
+      "port": 8082
+    },
+    "reviews-service": {
+      "root": "services/reviews-service",
+      "buildCommand": "go build -o reviews-service cmd/main.go",
+      "startCommand": "./reviews-service",
+      "port": 8083
+    },
+    "media-service": {
+      "root": "services/media-service",
+      "buildCommand": "go build -o media-service cmd/main.go",
+      "startCommand": "./media-service",
+      "port": 8084
+    },
+    "posts-service": {
+      "root": "services/posts-service",
+      "buildCommand": "go build -o posts-service cmd/main.go",
+      "startCommand": "./posts-service",
+      "port": 8085
+    },
+    "chat-service": {
+      "root": "services/chat-service",
+      "buildCommand": "go build -o chat-service cmd/main.go",
+      "startCommand": "./chat-service",
+      "port": 8086
+    },
+    "gateway": {
+      "root": "gateway",
+      "buildCommand": "go build -o gateway cmd/main.go",
+      "startCommand": "./gateway",
+      "port": 8080
+    },
+    "web": {
+      "root": "web-app",
+      "buildCommand": "npm install && npm run build",
+      "startCommand": "npm start",
+      "port": 3000
+    }
+  }
+}

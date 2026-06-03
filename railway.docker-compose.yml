@@ -1,0 +1,257 @@
+# Railway-optimized Docker Compose для Hobby Plan
+# Оптимизирован для 5GB storage и общих ресурсов
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: ${DB_USER:-mapsocial}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mapsocial123}
+      POSTGRES_DB: ${DB_NAME:-mapsocial}
+    ports:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mapsocial"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: always
+    # Railway автоматически управляет сохранением данных
+    labels:
+      - "railway.expose=true"
+
+  # Zookeeper для Kafka (lightweight режим)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      # Уменьшаем heap для экономии памяти
+      SERVER_JVMFLAGS: "-Xmx256M -Xms256M"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: always
+
+  # Kafka broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Экономим место в хранилище
+      KAFKA_LOG_RETENTION_HOURS: 72
+      KAFKA_LOG_SEGMENT_BYTES: 536870912  # 512MB вместо 1GB
+      KAFKA_LOG_CLEANUP_POLICY: "delete"
+      # Уменьшаем heap
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
+    ports:
+      - "9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "127.0.0.1:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  # Альтернатива MinIO - S3 в облаке (рекомендуем для production)
+  # На Hobby Plan можно использовать Railway's PostgreSQL storage или AWS S3
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-minioadmin123}
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000"
+      - "9001"
+    volumes:
+      - minio_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081"
+    environment:
+      - DATABASE_URL=host=postgres user=${DB_USER:-mapsocial} password=${DB_PASSWORD:-mapsocial123} dbname=${DB_NAME:-mapsocial} port=5432 sslmode=disable
+      - JWT_SECRET=${JWT_SECRET:-mapsocial-super-secret-key-2024}
+      - JWT_EXPIRY=720h
+      - KAFKA_BROKER=kafka:29092
+      - PORT=8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    labels:
+      - "railway.expose=true"
+
+  # Places Service
+  places-service:
+    build:
+      context: ./services/places-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082"
+    environment:
+      - DATABASE_URL=host=postgres user=${DB_USER:-mapsocial} password=${DB_PASSWORD:-mapsocial123} dbname=${DB_NAME:-mapsocial} port=5432 sslmode=disable
+      - PORT=8082
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    labels:
+      - "railway.expose=true"
+
+  # Reviews Service
+  reviews-service:
+    build:
+      context: ./services/reviews-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083"
+    environment:
+      - DATABASE_URL=host=postgres user=${DB_USER:-mapsocial} password=${DB_PASSWORD:-mapsocial123} dbname=${DB_NAME:-mapsocial} port=5432 sslmode=disable
+      - PORT=8083
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    labels:
+      - "railway.expose=true"
+
+  # Media Service
+  media-service:
+    build:
+      context: ./services/media-service
+      dockerfile: Dockerfile
+    ports:
+      - "8084"
+    environment:
+      - MEDIA_STORAGE_PATH=/app/storage
+      - MEDIA_PUBLIC_URL=${MEDIA_PUBLIC_URL:-http://localhost:8084/media}
+      - PORT=8084
+    volumes:
+      - media_data:/app/storage
+    restart: on-failure
+    labels:
+      - "railway.expose=true"
+
+  # Posts Service
+  posts-service:
+    build:
+      context: ./services/posts-service
+      dockerfile: Dockerfile
+    ports:
+      - "8085"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-mapsocial}
+      - DB_PASSWORD=${DB_PASSWORD:-mapsocial123}
+      - DB_NAME=${DB_NAME:-mapsocial}
+      - PORT=8085
+      - KAFKA_BROKER=kafka:29092
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    labels:
+      - "railway.expose=true"
+
+  # Chat Service
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "8086"
+    environment:
+      - DATABASE_URL=host=postgres user=${DB_USER:-mapsocial} password=${DB_PASSWORD:-mapsocial123} dbname=${DB_NAME:-mapsocial} port=5432 sslmode=disable
+      - PORT=8086
+      - KAFKA_BROKER=kafka:29092
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    labels:
+      - "railway.expose=true"
+
+  # API Gateway
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-mapsocial-super-secret-key-2024}
+      - PORT=8080
+      # Service URLs для Railway (internal network)
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - CHAT_SERVICE_URL=http://chat-service:8086
+      - PLACES_SERVICE_URL=http://places-service:8082
+      - POSTS_SERVICE_URL=http://posts-service:8085
+      - REVIEWS_SERVICE_URL=http://reviews-service:8083
+      - MEDIA_SERVICE_URL=http://media-service:8084
+    depends_on:
+      - auth-service
+      - chat-service
+      - places-service
+      - posts-service
+      - reviews-service
+      - media-service
+    restart: on-failure
+    labels:
+      - "railway.expose=true"
+
+  # Frontend
+  web:
+    build:
+      context: ./web-app
+      dockerfile: Dockerfile
+    ports:
+      - "80"
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-/api}
+    depends_on:
+      - gateway
+    restart: on-failure
+    labels:
+      - "railway.expose=true"
+
+volumes:
+  postgres_data:
+  minio_data:
+  media_data:
+  zookeeper_data:
+  kafka_data:

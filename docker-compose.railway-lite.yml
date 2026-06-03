@@ -1,0 +1,166 @@
+version: '3.8'
+
+services:
+  # ТОЛЬКО PostgreSQL из инфраструктуры
+  postgres:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: ${DB_USER:-mapsocial}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mapsocial123}
+      POSTGRES_DB: ${DB_NAME:-mapsocial}
+    ports:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mapsocial"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: always
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081"
+    environment:
+      - DATABASE_URL=host=postgres user=${DB_USER:-mapsocial} password=${DB_PASSWORD:-mapsocial123} dbname=${DB_NAME:-mapsocial} port=5432 sslmode=disable
+      - JWT_SECRET=${JWT_SECRET:-mapsocial-super-secret-key-2024}
+      - JWT_EXPIRY=720h
+      - PORT=8081
+      # Kafka отключен - сервис будет работать без async messaging
+      - KAFKA_ENABLED=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  # Places Service
+  places-service:
+    build:
+      context: ./services/places-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082"
+    environment:
+      - DATABASE_URL=host=postgres user=${DB_USER:-mapsocial} password=${DB_PASSWORD:-mapsocial123} dbname=${DB_NAME:-mapsocial} port=5432 sslmode=disable
+      - PORT=8082
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  # Reviews Service
+  reviews-service:
+    build:
+      context: ./services/reviews-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083"
+    environment:
+      - DATABASE_URL=host=postgres user=${DB_USER:-mapsocial} password=${DB_PASSWORD:-mapsocial123} dbname=${DB_NAME:-mapsocial} port=5432 sslmode=disable
+      - PORT=8083
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  # Media Service (БЕЗ MinIO, используем локальное хранилище)
+  media-service:
+    build:
+      context: ./services/media-service
+      dockerfile: Dockerfile
+    ports:
+      - "8084"
+    environment:
+      - MEDIA_STORAGE_PATH=/app/storage
+      - MEDIA_PUBLIC_URL=${MEDIA_PUBLIC_URL:-/media}
+      - PORT=8084
+    volumes:
+      - media_data:/app/storage
+    restart: on-failure
+
+  # Posts Service
+  posts-service:
+    build:
+      context: ./services/posts-service
+      dockerfile: Dockerfile
+    ports:
+      - "8085"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-mapsocial}
+      - DB_PASSWORD=${DB_PASSWORD:-mapsocial123}
+      - DB_NAME=${DB_NAME:-mapsocial}
+      - PORT=8085
+      # Kafka отключен
+      - KAFKA_ENABLED=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  # Chat Service
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "8086"
+    environment:
+      - DATABASE_URL=host=postgres user=${DB_USER:-mapsocial} password=${DB_PASSWORD:-mapsocial123} dbname=${DB_NAME:-mapsocial} port=5432 sslmode=disable
+      - PORT=8086
+      # Kafka отключен
+      - KAFKA_ENABLED=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  # API Gateway
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-mapsocial-super-secret-key-2024}
+      - PORT=8080
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - CHAT_SERVICE_URL=http://chat-service:8086
+      - PLACES_SERVICE_URL=http://places-service:8082
+      - POSTS_SERVICE_URL=http://posts-service:8085
+      - REVIEWS_SERVICE_URL=http://reviews-service:8083
+      - MEDIA_SERVICE_URL=http://media-service:8084
+    depends_on:
+      - auth-service
+      - chat-service
+      - places-service
+      - posts-service
+      - reviews-service
+      - media-service
+    restart: on-failure
+
+  # Frontend
+  web:
+    build:
+      context: ./web-app
+      dockerfile: Dockerfile
+    ports:
+      - "80"
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-/api}
+    depends_on:
+      - gateway
+    restart: on-failure
+
+volumes:
+  postgres_data:
+  media_data:
