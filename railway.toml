@@ -1,0 +1,39 @@
+# Railway Configuration
+# This file configures how Railway deploys the Mapped application
+
+[build]
+# Railway will use docker-compose.railway-lite.yml for deployment
+dockerfilePath = "Dockerfile"
+builder = "docker"
+
+[deploy]
+# Use the lightweight docker-compose for Railway Hobby Plan
+# without Kafka, Zookeeper, and MinIO
+startCommand = "docker-compose -f docker-compose.railway-lite.yml up"
+
+[environments]
+production = true
+
+[variables]
+# PostgreSQL Configuration
+POSTGRES_USER = "mapsocial"
+POSTGRES_DB = "mapped_db"
+# Password is set via Railway dashboard secrets (DO NOT put in this file)
+
+# JWT Configuration
+# JWT_SECRET is set via Railway dashboard secrets
+
+# Service URLs (Railway will set these automatically)
+AUTH_SERVICE_URL = "http://auth-service:8081"
+PLACES_SERVICE_URL = "http://places-service:8082"
+REVIEWS_SERVICE_URL = "http://reviews-service:8083"
+MEDIA_SERVICE_URL = "http://media-service:8084"
+POSTS_SERVICE_URL = "http://posts-service:8085"
+CHAT_SERVICE_URL = "http://chat-service:8086"
+
+# API Gateway
+GATEWAY_PORT = "8080"
+PORT = "8080"
+
+# Frontend
+REACT_APP_API_URL = "https://your-railway-domain.up.railway.app/api/v1"
